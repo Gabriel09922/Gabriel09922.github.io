@@ -7,8 +7,8 @@
 <meta name="description" content="Gestão da fazenda: dinheiro, tarefas, gado, lavouras, estoque, cotações e tempo.">
 <meta name="theme-color" content="#2E6A3B">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Agroshow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,12 +47,14 @@
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
 .wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
-header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand svg { width: 36px; height: 36px; flex: none; }
 .brand h1 { font-family: var(--display); font-weight: 800; font-size: 1.9rem; letter-spacing: -0.02em; margin: 0; line-height: 1; }
 .brand small { display: block; color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
-.safra { font-size: .85rem; color: var(--muted); }
+.safra { font-size: .85rem; color: var(--muted); margin-bottom: 16px; }
+.sair-btn { font: inherit; font-size: .85rem; font-weight: 700; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; flex: none; }
+.sair-btn:hover { color: var(--ink); border-color: var(--muted); }
 .safra b { color: var(--soil); font-weight: 600; }
 nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
 nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; color: var(--muted); padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
@@ -190,6 +192,11 @@ input, select { font: inherit; color: var(--ink); background: var(--bg); border:
 /* Simples */
 .resumo { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
 .resumo-linhas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; margin-top: 6px; }
+.resumo .resumo-linhas { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.resumo .resumo-linhas > div { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.resumo .resumo-linhas > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.resumo .resumo-linhas span { font-size: 1rem; }
+.resumo .resumo-linhas b { font-size: 1.3rem; overflow: visible; }
 .resumo-linhas > div { display: flex; flex-direction: column; min-width: 0; }
 .resumo-linhas span { font-size: .85rem; color: var(--muted); font-weight: 600; }
 .resumo-linhas b { font-family: var(--display); font-weight: 600; font-size: 1.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -284,8 +291,9 @@ img { max-width: 100%; }
       <svg viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="8" fill="var(--accent)"/><path d="M18 28V13" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M18 18c-5 0-8-3-8-8 5 0 8 3 8 8zM18 15c0-5 3-8 8-8 0 5-3 8-8 8z" fill="var(--accent-ink)"/></svg>
       <div><h1>Agroshow</h1><small>Gestão da fazenda</small></div>
     </div>
-    <div class="safra">Safra <b>2026/27</b> · <span id="hoje"></span><div class="conta" id="conta" hidden><span id="conta-nome"></span> · <button type="button" class="link-btn" id="sair">Sair</button></div></div>
+    <button type="button" class="sair-btn" id="sair" hidden>Sair</button>
   </header>
+  <div class="safra">Safra <b>2026/27</b> · <span id="hoje"></span><span id="conta" hidden> · Olá, <span id="conta-nome"></span></span></div>
 
   <div class="note" id="note" hidden></div>
 
@@ -1257,20 +1265,20 @@ render();
   const GLOBAL = /^cotacoes(\/|$)/;
   let iniciado = false;
   auth.onAuthStateChanged((u) => {
-    if (!u) { if (iniciado) { location.reload(); return; } $("login").hidden = false; $("conta").hidden = true; return; }
-    $("login").hidden = true; $("conta").hidden = false; $("conta-nome").textContent = u.displayName || u.email || "";
+    if (!u) { if (iniciado) { location.reload(); return; } $("login").hidden = false; $("conta").hidden = true; $("sair").hidden = true; return; }
+    $("login").hidden = true; $("conta").hidden = false; $("sair").hidden = false; $("conta-nome").textContent = (u.displayName || u.email || "").split(/[ @]/)[0];
     if (iniciado) return; iniciado = true;
     const caminho = (p) => GLOBAL.test(p) ? p : "users/" + u.uid + "/" + p;
     iniciarDados({ collection: (p) => fs.collection(caminho(p)), doc: (p) => fs.doc(caminho(p)) });
   });
-  auth.getRedirectResult().catch(() => { $("login-erro").textContent = "Não foi possível entrar. Tente de novo."; });
+  auth.getRedirectResult().catch((e) => { $("login-erro").textContent = "Não foi possível entrar. Tente de novo. (código: " + (e && e.code || "?") + ")"; });
   $("entrar").addEventListener("click", async () => {
     $("login-erro").textContent = "";
     const prov = new firebase.auth.GoogleAuthProvider();
     try { await auth.signInWithPopup(prov); }
     catch (e) {
       if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/cancelled-popup-request"].includes(e.code)) auth.signInWithRedirect(prov);
-      else if (e.code !== "auth/popup-closed-by-user") $("login-erro").textContent = "Não foi possível entrar. Tente de novo.";
+      else if (e.code !== "auth/popup-closed-by-user") $("login-erro").textContent = "Não foi possível entrar. Tente de novo. (código: " + (e.code || "?") + ")";
     }
   });
   $("sair").addEventListener("click", () => auth.signOut());
