@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agroshow</title>
+<meta name="description" content="Gestão da fazenda: dinheiro, tarefas, gado, lavouras, estoque, cotações e tempo.">
+<meta name="theme-color" content="#2E6A3B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agroshow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: app de campo — barra superior com marca, abas, conteúdo em uma coluna larga que vira duas no desktop */
+:root {
+  --bg: #F2F4EE;
+  --surface: #FFFFFF;
+  --ink: #18241B;
+  --muted: #5B6A5E;
+  --line: #DCE2D6;
+  --accent: #2E6A3B;
+  --accent-ink: #FFFFFF;
+  --soil: #8A5A2B;
+  --good: #2E7D45;
+  --bad: #B0412E;
+  --warn: #B7860F;
+  --chip: #E6ECDF;
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121813; --surface: #1A221C; --ink: #E6EDE4; --muted: #9AA99C; --line: #2C372E;
+    --accent: #6FBF7E; --accent-ink: #0F1A12; --soil: #D19A5E; --good: #72C487; --bad: #E58372; --warn: #E2B64A; --chip: #243026;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121813; --surface: #1A221C; --ink: #E6EDE4; --muted: #9AA99C; --line: #2C372E;
+  --accent: #6FBF7E; --accent-ink: #0F1A12; --soil: #D19A5E; --good: #72C487; --bad: #E58372; --warn: #E2B64A; --chip: #243026;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 36px; height: 36px; flex: none; }
+.brand h1 { font-family: var(--display); font-weight: 800; font-size: 1.9rem; letter-spacing: -0.02em; margin: 0; line-height: 1; }
+.brand small { display: block; color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+.safra { font-size: .85rem; color: var(--muted); }
+.safra b { color: var(--soil); font-weight: 600; }
+nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; color: var(--muted); padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+nav.tabs button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note { font-size: .82rem; color: var(--muted); background: var(--chip); padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; }
+.note[hidden] { display: none; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 1.15rem; margin: 0 0 12px; text-wrap: balance; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.nums { font-variant-numeric: tabular-nums; }
+
+/* Painel */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
+.kpi { background: var(--surface); padding: 14px 16px; min-width: 0; }
+.kpi .v { font-family: var(--display); font-weight: 600; font-size: 1.5rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .v.pos { color: var(--good); } .kpi .v.neg { color: var(--bad); }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: .88rem; }
+.bar-track { height: 10px; background: var(--chip); border-radius: 5px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--soil); border-radius: 5px; }
+.empty { color: var(--muted); font-size: .9rem; padding: 6px 0; }
+
+/* Listas */
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.list li:last-child { border-bottom: 0; }
+.date { font-size: .78rem; color: var(--muted); width: 44px; text-align: center; line-height: 1.15; }
+.date b { display: block; font-size: 1.1rem; color: var(--ink); font-family: var(--display); font-weight: 600; }
+.desc { min-width: 0; }
+.desc .t { font-weight: 600; overflow-wrap: anywhere; }
+.desc .s { font-size: .8rem; color: var(--muted); }
+.amt { font-weight: 600; white-space: nowrap; }
+.amt.r { color: var(--good); } .amt.d { color: var(--bad); }
+.chip { display: inline-block; font-size: .72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); margin-right: 4px; }
+.chip.chip-pasto { color: var(--soil); }
+.chip.pend { color: var(--warn); } .chip.done { color: var(--good); }
+.actions { display: flex; gap: 6px; align-items: center; }
+.icon-btn { font: inherit; font-size: .78rem; font-weight: 600; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.icon-btn:hover { color: var(--ink); border-color: var(--muted); }
+.icon-btn.danger { color: var(--bad); border-color: var(--bad); }
+.check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--accent-ink); }
+.check.on { background: var(--good); border-color: var(--good); }
+.done-row .t { text-decoration: line-through; color: var(--muted); }
+
+/* Formulários */
+form.entry { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 18px; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.f.w2 { grid-column: span 2; } .f.w3 { grid-column: span 3; }
+.f label { font-size: .75rem; font-weight: 600; color: var(--muted); }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { flex: 1; font: inherit; font-weight: 600; font-size: .85rem; background: var(--bg); color: var(--muted); border: 0; padding: 8px 6px; cursor: pointer; }
+.seg button[aria-pressed="true"][data-v="receita"] { background: var(--good); color: var(--accent-ink); }
+.seg button[aria-pressed="true"][data-v="despesa"] { background: var(--bad); color: var(--accent-ink); }
+.btn { font: inherit; font-weight: 700; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 9px 14px; cursor: pointer; }
+.btn:disabled { opacity: .5; cursor: default; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+.filters select { width: auto; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 8px; font-size: .88rem; font-weight: 600; }
+
+/* Cotações */
+.cot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.s { font-size: .8rem; color: var(--muted); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 700; color: var(--good); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: pulse 2s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.dolar { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+.dolar b { font-family: var(--display); font-weight: 600; font-size: 1.2rem; }
+.cot-tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.cot-scope button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.fchip { font: inherit; font-size: .82rem; font-weight: 600; white-space: nowrap; background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.cat { margin-bottom: 18px; }
+.cat > h3 { font-family: var(--display); font-weight: 800; font-size: 1.05rem; margin: 0 0 10px; letter-spacing: -0.01em; }
+.prods { columns: 3 300px; column-gap: 10px; }
+.prod { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid; display: inline-block; width: 100%; vertical-align: top; margin: 0 0 10px; }
+.prod > header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 9px 12px 7px; border-bottom: 1px solid var(--line); }
+.prod > header h4 { margin: 0; font-size: 1rem; font-weight: 700; }
+.prod > header span { font-size: .75rem; color: var(--muted); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 12px; padding: 7px 12px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row .loc { font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+.row .src { font-size: .74rem; color: var(--muted); grid-column: 1; }
+.row .pr { grid-column: 2; grid-row: 1; text-align: right; font-weight: 700; white-space: nowrap; }
+.row .pr small { font-weight: 500; font-size: .72rem; color: var(--muted); margin-left: 3px; }
+.row .var { grid-column: 2; grid-row: 2; text-align: right; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.row.bolsa { background: var(--chip); }
+.tag { display: inline-block; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--soil); margin-right: 6px; }
+.var.up { color: var(--good); } .var.down { color: var(--bad); } .var.flat { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+
+/* Novos módulos */
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.f.w4 { grid-column: span 4; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card-top h3 { margin: 0; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: 0; }
+.kv div { min-width: 0; }
+.kv dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.kv dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ev { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 6px; }
+.tot { display: flex; justify-content: space-between; font-weight: 700; padding-top: 10px; border-top: 2px solid var(--line); margin-top: 4px; }
+.calc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.calc .full { grid-column: 1 / -1; }
+.calc-res { margin: 0 0 8px; display: grid; gap: 4px; }
+.calc-res div { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.calc-res dt { color: var(--muted); } .calc-res dd { margin: 0; font-weight: 600; }
+.calc-res .big { border-top: 2px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.calc-res .big dd { font-family: var(--display); font-size: 1.3rem; color: var(--good); }
+.row[data-cot] { cursor: pointer; }
+.row[data-cot]:hover .loc { text-decoration: underline; }
+.bell { display: inline-block; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-ink); background: var(--warn); border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
+.alerta-ok { color: var(--good); font-weight: 700; }
+.sheet { position: fixed; inset: 0; background: rgba(10, 16, 11, .45); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
+.sheet-card { background: var(--surface); color: var(--ink); width: min(560px, 100%); max-height: 88vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.sheet-top h2 { margin: 0 0 4px; }
+.sheet-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.sheet-form .full { grid-column: 1 / -1; }
+.big-price { font-family: var(--display); font-weight: 600; font-size: 1.8rem; }
+.chart { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+.chart text { fill: var(--muted); font-size: 10px; font-family: var(--body); }
+.tempo-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tempo-row:last-child { border-bottom: 0; }
+.rain { height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.rain i { display: block; height: 100%; background: #3B7DB8; border-radius: 4px; }
+.ok-pulv { color: var(--good); font-size: .75rem; font-weight: 700; } .no-pulv { color: var(--warn); font-size: .75rem; font-weight: 700; }
+
+/* Simples */
+.resumo { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
+.resumo-linhas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; margin-top: 6px; }
+.resumo-linhas > div { display: flex; flex-direction: column; min-width: 0; }
+.resumo-linhas span { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.resumo-linhas b { font-family: var(--display); font-weight: 600; font-size: 1.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resumo-linhas .pos { color: var(--good); } .resumo-linhas .neg { color: var(--bad); }
+.uf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
+.uf { font: inherit; font-family: var(--display); font-size: 1.15rem; font-weight: 800; color: var(--accent); display: grid; place-items: center; aspect-ratio: 1; max-width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; padding: 0; }
+.uf:hover, .cid:hover { border-color: var(--accent); }
+.cid-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 2px; }
+.cid { font: inherit; font-weight: 600; text-align: center; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px; cursor: pointer; overflow-wrap: anywhere; }
+.cid.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.resumo-mini { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px; }
+.home-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+.tile { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 14px; cursor: pointer; min-height: 110px; }
+.tile:hover { border-color: var(--accent); }
+.tile:last-child:nth-child(odd) { grid-column: span 2; min-height: 0; }
+.tile svg { width: 30px; height: 30px; color: var(--accent); margin-bottom: 6px; }
+.tile b { font-size: 1.08rem; }
+.tile span { font-size: .82rem; color: var(--muted); line-height: 1.3; }
+.dolar-panel { grid-column: 1 / -1; }
+.dolar-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.ao-vivo { display: block; text-align: center; text-decoration: none; padding: 12px; border-radius: 10px; }
+.home-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.voltar-inicio { font: inherit; font-weight: 700; font-size: .95rem; display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px 6px 6px; margin-bottom: 14px; cursor: pointer; box-shadow: 0 1px 2px rgba(20, 40, 25, .06); }
+.voltar-inicio:hover { border-color: var(--accent); }
+.vi-ico { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+.vi-ico svg { width: 16px; height: 16px; }
+.voltar { font: inherit; font-weight: 700; color: var(--accent); background: none; border: 0; padding: 6px 0; margin-bottom: 6px; cursor: pointer; }
+.sec-head { margin-bottom: 14px; }
+.sec-head h2 { font-family: var(--display); font-weight: 800; font-size: 1.6rem; margin: 0; }
+.sec-head p { margin: 2px 0 0; color: var(--muted); }
+.add-btn { font: inherit; font-weight: 700; font-size: 1.02rem; width: 100%; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 14px; margin-bottom: 14px; cursor: pointer; }
+.add-btn.aberto { background: var(--chip); color: var(--ink); }
+.btn.small { padding: 8px 12px; font-size: .9rem; }
+details.mais summary { cursor: pointer; font-weight: 700; color: var(--accent); padding: 4px 0; }
+details.calc-box { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.linhas3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.linhas3 > div { display: flex; flex-direction: column; min-width: 0; }
+.linhas3 span { font-size: .78rem; color: var(--muted); font-weight: 600; }
+.linhas3 b { font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+input, select { padding: 10px 12px; font-size: 1rem; }
+.seg button { padding: 10px 6px; font-size: .95rem; }
+
+@media (max-width: 760px) {
+  .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-info { grid-template-columns: minmax(0, 1fr); }
+  .resumo-linhas b { font-size: 1.05rem; }
+  .resumo-mini b { font-size: 1rem; }
+  .grid3 { grid-template-columns: minmax(0, 1fr); }
+  .f.w4 { grid-column: span 2; }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  form.entry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .f.w2, .f.w3 { grid-column: span 2; }
+  .kpi .v { font-size: 1.15rem; }
+  .kpi { padding: 12px; }
+  .bar-row { grid-template-columns: 88px minmax(0, 1fr) auto; }
+}
+@media (max-width: 420px) {
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<style>
+html, body { margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+img { max-width: 100%; }
+.conta { font-size: .8rem; margin-top: 2px; text-align: right; }
+.link-btn { font: inherit; background: none; border: 0; color: var(--accent); font-weight: 700; padding: 0; cursor: pointer; text-decoration: underline; }
+.login { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.login-card { width: min(380px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.login-card svg { width: 72px; height: 72px; }
+.login-card h1 { font-family: var(--display); font-weight: 800; font-size: 2.2rem; margin: 0; }
+.login-card p { color: var(--muted); margin: 0; }
+.google-btn { font: inherit; font-weight: 700; font-size: 1.05rem; display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; margin-top: 8px; }
+.google-btn:hover { border-color: var(--accent); }
+#login-erro { color: var(--bad); font-size: .9rem; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<div class="login" id="login" hidden>
+  <div class="login-card">
+    <svg viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="8" fill="var(--accent)"/><path d="M18 28V13" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M18 18c-5 0-8-3-8-8 5 0 8 3 8 8zM18 15c0-5 3-8 8-8 0 5-3 8-8 8z" fill="var(--accent-ink)"/></svg>
+    <h1>Agroshow</h1>
+    <p>Gestão da fazenda na palma da mão. Entre com sua conta Google: cada fazenda vê só os próprios dados.</p>
+    <button class="google-btn" id="entrar" type="button"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</button>
+    <div id="login-erro" role="alert"></div>
+  </div>
+</div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="8" fill="var(--accent)"/><path d="M18 28V13" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M18 18c-5 0-8-3-8-8 5 0 8 3 8 8zM18 15c0-5 3-8 8-8 0 5-3 8-8 8z" fill="var(--accent-ink)"/></svg>
+      <div><h1>Agroshow</h1><small>Gestão da fazenda</small></div>
+    </div>
+    <div class="safra">Safra <b>2026/27</b> · <span id="hoje"></span><div class="conta" id="conta" hidden><span id="conta-nome"></span> · <button type="button" class="link-btn" id="sair">Sair</button></div></div>
+  </header>
+
+  <div class="note" id="note" hidden></div>
+
+  <!-- INÍCIO -->
+  <section id="v-painel">
+    <div class="resumo">
+      <div class="label" id="mes-label"></div>
+      <div class="resumo-linhas">
+        <div><span>Entrou</span><b class="nums pos" id="k-rec">R$ 0</b></div>
+        <div><span>Saiu</span><b class="nums neg" id="k-desp">R$ 0</b></div>
+        <div class="sobra"><span id="k-saldo-lbl">Sobrou</span><b class="nums" id="k-saldo">R$ 0</b></div>
+      </div>
+    </div>
+    <nav class="home-grid" aria-label="Seções do app">
+      <button class="tile" type="button" data-ir="cotacoes"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><b>Cotações</b><span>Preço do café, soja, boi</span></button>
+      <button class="tile" type="button" data-ir="caixa"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14.5" r="1.4"/></svg><b>Dinheiro</b><span>O que entrou e saiu</span></button>
+      <button class="tile" type="button" data-ir="campo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l2 2 4-4"/><path d="M9 17h6"/></svg><b>Tarefas</b><span>O que fazer na fazenda</span></button>
+      <button class="tile" type="button" data-ir="tempo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4 4 0 010-8 5 5 0 019.6-1.5A3.5 3.5 0 1117 17z"/><path d="M8 20l1-2M12 21l1-2M16 20l1-2"/></svg><b>Tempo</b><span>Chuva dos próximos dias</span></button>
+      <button class="tile" type="button" data-ir="rebanho"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9c0-2 1-4 3-4h8c2 0 3 2 3 4v4c0 3-3 6-7 6s-7-3-7-6z"/><path d="M5 9L2 7M19 9l3-2"/><circle cx="9.5" cy="11" r=".8" fill="currentColor"/><circle cx="14.5" cy="11" r=".8" fill="currentColor"/><path d="M10 15h4"/></svg><b>Gado</b><span>Lotes, peso e valor</span></button>
+      <button class="tile" type="button" data-ir="talhoes"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M12 14c-4 0-6-2-6-6 4 0 6 2 6 6zM12 11c0-4 2-6 6-6 0 4-2 6-6 6z"/><path d="M4 21h16"/></svg><b>Lavouras e Pastos</b><span>Gasto de cada área</span></button>
+      <button class="tile" type="button" data-ir="estoque"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6v10H3z"/><path d="M8 20v-6h8v6"/></svg><b>Estoque</b><span>O que está guardado</span></button>
+    </nav>
+    <div class="home-info">
+      <div class="panel"><h2>Tempo hoje</h2><div id="tempo-painel"></div></div>
+      <div class="panel"><h2>Próximas tarefas</h2><ul class="list" id="prox"></ul></div>
+      <div class="panel"><h2>Quanto vale o que você tem</h2><div id="pat"></div></div>
+      <div class="panel"><h2>Avisos de preço</h2><div id="alertas-painel"></div></div>
+      <div class="panel dolar-panel"><h2>Dólar</h2><div id="dolar-painel"></div></div>
+    </div>
+  </section>
+
+  <!-- DINHEIRO -->
+  <section id="v-caixa" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Dinheiro</h2><p>Anote tudo que entra e tudo que sai.</p></div>
+    <form class="entry" id="f-lanc" autocomplete="off">
+      <div class="f w2">
+        <label>Foi gasto ou venda?</label>
+        <div class="seg" id="seg-tipo">
+          <button type="button" data-v="despesa" aria-pressed="true">Gastei</button>
+          <button type="button" data-v="receita" aria-pressed="false">Recebi</button>
+        </div>
+      </div>
+      <div class="f w2"><label for="l-valor">Quanto? (R$)</label><input id="l-valor" inputmode="decimal" required placeholder="0,00"></div>
+      <div class="f w2"><label for="l-desc">Com o quê?</label><input id="l-desc" required placeholder="Ex.: adubo, diesel, venda de café"></div>
+      <div class="f w2"><label for="l-data">Que dia?</label><input id="l-data" type="date" required></div>
+      <div class="f w2"><label for="l-cat">Tipo</label><select id="l-cat"></select></div>
+      <div class="f w2"><label for="l-talhao">Qual lavoura ou pasto? (se quiser)</label><input id="l-talhao" list="talhoes" placeholder="Ex.: Lavoura de café, Pasto 4"></div>
+      <div class="f w2"><button class="btn" id="l-save" type="submit">Salvar</button></div>
+    </form>
+    <div class="filters">
+      <label for="flt-mes" class="label">Mês</label>
+      <select id="flt-mes"></select>
+      <span class="nums" id="flt-total" style="margin-left:auto;font-weight:700"></span>
+    </div>
+    <div class="panel"><ul class="list" id="lancs"></ul></div>
+    <details class="mais" style="margin-top:14px"><summary>Ver em que o dinheiro foi gasto neste mês</summary><div class="bars" id="bars" style="margin-top:10px"></div></details>
+  </section>
+
+  <!-- TAREFAS -->
+  <section id="v-campo" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Tarefas</h2><p>O que precisa ser feito na fazenda e o que já foi feito.</p></div>
+    <form class="entry" id="f-ativ" autocomplete="off">
+      <div class="f w2"><label for="a-tipo">O que fazer?</label><select id="a-tipo"></select></div>
+      <div class="f w2"><label for="a-talhao">Onde?</label><input id="a-talhao" list="talhoes" required placeholder="Ex.: Lavoura de soja, Pasto 4"></div>
+      <div class="f w2"><label for="a-data">Quando?</label><input id="a-data" type="date" required></div>
+      <div class="f w3"><label for="a-det">Detalhes (se quiser)</label><input id="a-det" placeholder="Ex.: 2 litros por hectare"></div>
+      <div class="f"><label for="a-resp">Quem faz?</label><input id="a-resp" placeholder="Nome"></div>
+      <div class="f w2"><button class="btn" id="a-save" type="submit">Salvar tarefa</button></div>
+    </form>
+    <div class="filters">
+      <label for="flt-status" class="label">Mostrar</label>
+      <select id="flt-status">
+        <option value="todas">Todas</option>
+        <option value="pendente">Para fazer</option>
+        <option value="feita">Já feitas</option>
+      </select>
+    </div>
+    <div class="panel"><ul class="list" id="ativs"></ul></div>
+    <p class="s" style="margin-top:10px">Toque na bolinha para marcar a tarefa como feita.</p>
+  </section>
+  <!-- COTAÇÕES -->
+  <section id="v-cotacoes" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="cot-head">
+      <div><h2 style="margin:0">Cotações</h2><div class="s" id="cot-upd">Carregando…</div></div>
+      <span class="live" id="cot-live" hidden><i></i>ao vivo</span>
+    </div>
+    <div class="dolar" id="cot-dolar" hidden></div>
+    <div class="cot-tools">
+      <div class="seg cot-scope" id="cot-scope" role="group" aria-label="Região">
+        <button type="button" data-scope="mg" aria-pressed="true">Minas e Triângulo</button>
+        <button type="button" data-scope="todos" aria-pressed="false">Brasil e bolsas</button>
+      </div>
+      <div class="chips" id="cot-chips"></div>
+      <input id="cot-busca" type="search" placeholder="Buscar produto ou cidade" aria-label="Buscar produto ou cidade">
+    </div>
+    <div id="cot-groups"></div>
+    <p class="s" style="margin-top:16px">Preços de referência das fontes indicadas em cada linha. O valor pago pelo comprador pode ser diferente. Confirme antes de fechar negócio.</p>
+  </section>
+  <!-- LAVOURAS -->
+  <section id="v-talhoes" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Lavouras e Pastos</h2><p>Cadastre cada pedaço da fazenda, de plantio ou de gado, e veja quanto gastou e quanto rendeu.</p></div>
+    <form class="entry" id="f-talhao" autocomplete="off">
+      <div class="f w2"><label for="t-nome">Nome</label><input id="t-nome" list="talhoes" required placeholder="Ex.: Lavoura de café ou Pasto 4"></div>
+      <div class="f w2"><label for="t-cult">É lavoura ou pasto?</label><select id="t-cult"></select></div>
+      <div class="f"><label for="t-area">Tamanho (hectares)</label><input id="t-area" inputmode="decimal" required placeholder="0"></div>
+      <div class="f"><label for="t-safra">Safra</label><input id="t-safra" value="2026/27"></div>
+      <div class="f w2"><button class="btn" id="t-save" type="submit">Salvar</button></div>
+    </form>
+    <div class="cards" id="talhoes-list"></div>
+    <p class="s" style="margin-top:12px">Os gastos aparecem aqui quando você anota no Dinheiro com o mesmo nome. No pasto, os animais aparecem quando o lote de gado usa o mesmo nome de pasto.</p>
+  </section>
+
+  <!-- GADO -->
+  <section id="v-rebanho" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Gado</h2><p>Seus lotes, o peso dos animais e quanto valem hoje.</p></div>
+    <div class="resumo-linhas resumo-mini">
+      <div><span>Cabeças</span><b class="nums" id="r-cab">0</b></div>
+      <div><span>Lotes</span><b class="nums" id="r-lotes">0</b></div>
+      <div class="sobra"><span>Vale hoje</span><b class="nums" id="r-valor">R$ 0</b></div>
+    </div>
+    <form class="entry" id="f-lote" autocomplete="off">
+      <div class="f w2"><label for="lo-nome">Nome do lote</label><input id="lo-nome" required placeholder="Ex.: Lote da engorda"></div>
+      <div class="f w2"><label for="lo-cat">Que tipo de animal?</label><select id="lo-cat"></select></div>
+      <div class="f"><label for="lo-cab">Quantas cabeças?</label><input id="lo-cab" inputmode="numeric" required placeholder="0"></div>
+      <div class="f"><label for="lo-peso">Peso de cada um (kg)</label><input id="lo-peso" inputmode="decimal" placeholder="Média"></div>
+      <div class="f w2"><label for="lo-pasto">Em qual pasto?</label><input id="lo-pasto" list="talhoes" placeholder="Ex.: Pasto 4"></div>
+      <div class="f w2"><button class="btn" id="lo-save" type="submit">Salvar lote</button></div>
+    </form>
+    <div class="cards" id="lotes-list"></div>
+    <details class="mais" style="margin-top:12px"><summary>Como o valor é calculado?</summary><p class="s">Boi, vaca e novilha gordos: peso ÷ 30 dá as arrobas, vezes o preço da arroba em Uberlândia. Bezerro, garrote e boi magro: peso vezes o preço do quilo em Minas. Vaca de cria, vaca de leite e touro não têm preço de referência.</p></details>
+  </section>
+
+  <!-- ESTOQUE -->
+  <section id="v-estoque" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Estoque</h2><p>O que você tem guardado e quanto vale pelo preço de hoje.</p></div>
+    <form class="entry" id="f-est" autocomplete="off">
+      <div class="f w3"><label for="e-prod">O que está guardado?</label><select id="e-prod" required></select></div>
+      <div class="f"><label for="e-qtd">Quantas sacas?</label><input id="e-qtd" inputmode="decimal" required placeholder="0"></div>
+      <div class="f w2"><label for="e-local">Onde? (se quiser)</label><input id="e-local" placeholder="Ex.: Armazém da cooperativa"></div>
+      <div class="f w2"><button class="btn" id="e-save" type="submit">Salvar</button></div>
+    </form>
+    <div class="panel">
+      <ul class="list" id="est-list"></ul>
+      <div class="tot" id="est-tot"></div>
+    </div>
+    <details class="mais calc-box" style="margin-top:14px"><summary>Calcular quanto sobra numa venda</summary>
+      <div class="calc" style="margin-top:12px">
+        <div class="f full"><label for="c-prod">O que vai vender?</label><select id="c-prod"></select></div>
+        <div class="f"><label for="c-qtd">Quantas sacas?</label><input id="c-qtd" inputmode="decimal" placeholder="0"></div>
+        <div class="f"><label for="c-preco">Preço da saca (R$)</label><input id="c-preco" inputmode="decimal" placeholder="0,00"></div>
+        <div class="f"><label for="c-frete">Frete por saca (R$)</label><input id="c-frete" inputmode="decimal" placeholder="0,00"></div>
+        <div class="f"><label for="c-fun">Funrural (%)</label><input id="c-fun" inputmode="decimal" value="1,5"></div>
+        <div class="f full"><label for="c-out">Outros gastos (R$)</label><input id="c-out" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <dl class="calc-res" id="c-res"></dl>
+      <p class="s">O Funrural de 1,5% é o mais comum para pessoa física. Confira o seu com o contador.</p>
+    </details>
+  </section>
+
+  <!-- TEMPO -->
+  <section id="v-tempo" hidden>
+    <button class="voltar-inicio" data-ir="painel" type="button"><span class="vi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>Início</button>
+    <div class="sec-head"><h2>Tempo</h2><p>Chuva, vento e temperatura dos próximos dias.</p></div>
+    <div class="panel" id="cid-picker" style="margin-bottom:14px">
+      <div id="cid-step1">
+        <h2>Estado</h2>
+        <div class="uf-grid" id="uf-grid"></div>
+      </div>
+      <div id="cid-step2" hidden>
+        <button class="voltar" type="button" id="cid-voltar-uf" style="display:inline-flex;align-items:center;gap:7px"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M8 0.5v9L0.5 5z" fill="currentColor"/></svg>Estados</button>
+        <h2>Cidade · <span id="uf-nome"></span></h2>
+        <input id="cid-busca" type="search" placeholder="Buscar" aria-label="Buscar cidade" style="margin-bottom:10px">
+        <div class="cid-grid" id="cid-grid"></div>
+        <details class="mais" style="margin-top:12px"><summary>Outra cidade</summary>
+          <form id="f-cidade-outra" class="sheet-form" autocomplete="off">
+            <div class="f full"><label for="cid-outra">Nome da cidade</label><input id="cid-outra" required placeholder="Escreva o nome"></div>
+            <div class="full"><button class="btn" type="submit">Salvar cidade</button></div>
+          </form>
+        </details>
+      </div>
+    </div>
+    <div class="panel"><div id="tempo-head" class="s" style="margin-bottom:8px"></div><ul class="list" id="tempo-list"></ul></div>
+    <button class="icon-btn" type="button" id="cid-trocar" style="margin-top:12px" hidden>Trocar cidade</button>
+    <p class="s" style="margin-top:12px">Previsão do Open-Meteo, atualizada sempre que você abre o app. "Bom para pulverizar" quando a chance de chuva é menor que 30% e o vento é menor que 15 km/h.</p>
+  </section>
+  <datalist id="talhoes"></datalist>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="sheet" id="sheet" hidden><div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-top"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-x" type="button">Fechar</button></div><div id="sheet-body"></div></div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const CATS_DESP = ["Insumos", "Mão de obra", "Combustível", "Manutenção", "Veterinário", "Outras despesas"];
+const CATS_REC = ["Venda de produção", "Venda de animais", "Outras receitas"];
+const TIPOS_ATIV = ["Plantio", "Adubação", "Pulverização", "Colheita", "Irrigação", "Manejo do gado", "Manutenção", "Outra"];
+const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+
+const $ = (id) => document.getElementById(id);
+const brl = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: n % 1 ? 2 : 0 });
+const today = new Date();
+const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const TODAY = iso(today);
+const MES_ATUAL = TODAY.slice(0, 7);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let lancs = [];   // {id, tipo, descricao, valor, data, categoria, talhao}
+let ativs = [];   // {id, tipo, talhao, data, detalhes, responsavel, feita}
+let db = null;
+let canWrite = true;
+let tipoLanc = "despesa";
+
+$("hoje").textContent = today.toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
+$("mes-label").textContent = "Dinheiro de " + MESES[today.getMonth()];
+$("l-data").value = TODAY;
+$("a-data").value = TODAY;
+TIPOS_ATIV.forEach((t) => $("a-tipo").add(new Option(t, t)));
+function fillCats() {
+  const sel = $("l-cat"); sel.innerHTML = "";
+  (tipoLanc === "despesa" ? CATS_DESP : CATS_REC).forEach((c) => sel.add(new Option(c, c)));
+}
+fillCats();
+
+/* ---------- Abas ---------- */
+const VIEWS = ["painel", "cotacoes", "caixa", "campo", "talhoes", "rebanho", "estoque", "tempo"];
+function showTab(name) {
+  if (!VIEWS.includes(name)) name = "painel";
+  VIEWS.forEach((v) => { $("v-" + v).hidden = v !== name; const t = $("tab-" + v); if (t) t.setAttribute("aria-selected", v === name); });
+}
+document.addEventListener("click", (e) => {
+  const ir = e.target.closest("[data-ir]");
+  if (ir) { const t = ir.dataset.ir; if (t === "painel") history.replaceState(null, "", location.pathname + location.search); else location.hash = t; showTab(t); window.scrollTo(0, 0); return; }
+  const ab = e.target.closest("[data-abre]");
+  if (ab) { const f = $(ab.dataset.abre); f.hidden = !f.hidden; ab.textContent = f.hidden ? ab.dataset.txt : "Fechar"; ab.classList.toggle("aberto", !f.hidden); if (!f.hidden) { const i = f.querySelector("input:not([type=date]),select"); i && i.focus(); } }
+});
+document.querySelectorAll("[data-abre]").forEach((b) => b.dataset.txt = b.textContent);
+document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); }));
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+showTab(location.hash.slice(1));
+
+/* ---------- Render ---------- */
+function fmtDate(d) {
+  const [y, m, day] = d.split("-");
+  return `<div class="date"><b>${+day}</b>${MESES[+m - 1].slice(0, 3)}</div>`;
+}
+function renderPainel() {
+  const mes = lancs.filter((l) => l.data.startsWith(MES_ATUAL));
+  const rec = mes.filter((l) => l.tipo === "receita").reduce((a, l) => a + l.valor, 0);
+  const desp = mes.filter((l) => l.tipo === "despesa").reduce((a, l) => a + l.valor, 0);
+  $("k-rec").textContent = brl(rec);
+  $("k-desp").textContent = brl(desp);
+  const s = rec - desp;
+  $("k-saldo").textContent = brl(Math.abs(s)); $("k-saldo-lbl").textContent = s >= 0 ? "Sobrou" : "Faltou";
+  $("k-saldo").className = "v nums " + (s >= 0 ? "pos" : "neg");
+
+  const byCat = {};
+  mes.filter((l) => l.tipo === "despesa").forEach((l) => byCat[l.categoria] = (byCat[l.categoria] || 0) + l.valor);
+  const rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const max = rows.length ? rows[0][1] : 1;
+  $("bars").innerHTML = rows.length ? rows.map(([c, v]) => `
+    <div class="bar-row"><span>${esc(c)}</span><div class="bar-track"><div class="bar-fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div><span class="nums">${brl(v)}</span></div>`).join("")
+    : `<div class="empty">Nenhum gasto anotado neste mês.</div>`;
+
+  const prox = ativs.filter((a) => !a.feita).sort((a, b) => a.data.localeCompare(b.data)).slice(0, 5);
+  $("prox").innerHTML = prox.length ? prox.map((a) => `
+    <li>${fmtDate(a.data)}<div class="desc"><div class="t">${esc(a.tipo)} · ${esc(a.talhao)}</div><div class="s">${esc(a.detalhes || "")}${a.data < TODAY ? ' <span class="chip pend">atrasada</span>' : ""}</div></div><span></span></li>`).join("")
+    : `<li style="display:block"><div class="empty">Nenhuma tarefa para fazer.</div></li>`;
+}
+
+function renderMesFilter() {
+  const sel = $("flt-mes"); const cur = sel.value || MES_ATUAL;
+  const meses = new Set([MES_ATUAL, ...lancs.map((l) => l.data.slice(0, 7))]);
+  sel.innerHTML = "";
+  sel.add(new Option("Todos os meses", "todos"));
+  [...meses].sort().reverse().forEach((m) => { const [y, mm] = m.split("-"); sel.add(new Option(MESES[+mm - 1] + " " + y, m)); });
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : MES_ATUAL;
+}
+function renderLancs() {
+  const m = $("flt-mes").value;
+  const list = lancs.filter((l) => m === "todos" || l.data.startsWith(m)).sort((a, b) => b.data.localeCompare(a.data));
+  const saldo = list.reduce((a, l) => a + (l.tipo === "receita" ? l.valor : -l.valor), 0);
+  $("flt-total").textContent = (saldo >= 0 ? "Sobrou " : "Faltou ") + brl(Math.abs(saldo));
+  $("flt-total").style.color = saldo >= 0 ? "var(--good)" : "var(--bad)";
+  $("lancs").innerHTML = list.length ? list.map((l) => `
+    <li>${fmtDate(l.data)}
+      <div class="desc"><div class="t">${esc(l.descricao)}</div><div class="s"><span class="chip">${esc(l.categoria)}</span>${esc(l.talhao || "")}</div></div>
+      <div class="actions"><span class="amt nums ${l.tipo === "receita" ? "r" : "d"}">${l.tipo === "receita" ? "+" : "−"} ${brl(l.valor)}</span>
+      ${canWrite ? `<button class="icon-btn" data-del-l="${l.id}">Excluir</button>` : ""}</div></li>`).join("")
+    : `<li style="display:block"><div class="empty">Nada anotado neste mês.</div></li>`;
+}
+function renderAtivs() {
+  const f = $("flt-status").value;
+  const list = ativs.filter((a) => f === "todas" || (f === "feita" ? a.feita : !a.feita))
+    .sort((a, b) => (a.feita - b.feita) || (a.feita ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)));
+  $("ativs").innerHTML = list.length ? list.map((a) => `
+    <li class="${a.feita ? "done-row" : ""}">${fmtDate(a.data)}
+      <div class="desc"><div class="t">${esc(a.tipo)} · ${esc(a.talhao)}</div>
+        <div class="s">${a.feita ? '<span class="chip done">feita</span>' : (a.data < TODAY ? '<span class="chip pend">atrasada</span>' : '<span class="chip pend">para fazer</span>')}${esc(a.detalhes || "")}${a.responsavel ? " · " + esc(a.responsavel) : ""}</div></div>
+      <div class="actions">
+        ${canWrite ? `<button class="check ${a.feita ? "on" : ""}" data-toggle="${a.id}" aria-label="${a.feita ? "Marcar como pendente" : "Marcar como feita"}" title="${a.feita ? "Marcar como pendente" : "Marcar como feita"}">${a.feita ? '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>' : ""}</button>
+        <button class="icon-btn" data-del-a="${a.id}">Excluir</button>` : ""}
+      </div></li>`).join("")
+    : `<li style="display:block"><div class="empty">Nenhuma tarefa aqui.</div></li>`;
+}
+function renderTalhoes() {
+  const extra = typeof st !== "undefined" ? [...st.talhoes.map((t) => t.nome), ...st.lotes.map((l) => l.pasto)] : [];
+  const set = new Set([...lancs.map((l) => l.talhao), ...ativs.map((a) => a.talhao), ...extra].filter(Boolean));
+  $("talhoes").innerHTML = [...set].sort().map((t) => `<option value="${esc(t)}">`).join("");
+}
+let cotData = null, cotFiltro = "Todos", cotScope = "mg";
+const CAT_ORDEM = ["Grãos", "Café", "Pecuária", "Hortifrúti", "Cana e fibras", "Suínos, aves e ovos"];
+function fmtPreco(v, moeda) {
+  if (v === null || v === undefined || !isFinite(Number(v))) return null;
+  v = Number(v);
+  const txt = v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: v < 10 ? 4 : 2 });
+  return (moeda === "USD" ? "US$ " : "R$ ") + txt;
+}
+function fmtVar(x) {
+  const v = Number(x);
+  if (x === null || x === undefined || !isFinite(v)) return { cls: "", txt: "" };
+  return { cls: v > 0 ? "up" : v < 0 ? "down" : "flat", txt: (v > 0 ? "▲ " : v < 0 ? "▼ " : "") + Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%" };
+}
+function fmtDia(d) { const [y, m, dd] = String(d || "").split("-"); return dd ? dd + "/" + m : ""; }
+const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function renderCot(d) {
+  if (d) cotData = d; d = cotData || { itens: [] };
+  const itens = Array.isArray(d.itens) ? d.itens : [];
+  if (d.atualizadoEm) {
+    const t = new Date(d.atualizadoEm);
+    $("cot-upd").textContent = "Atualizado " + t.toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) + " às " + t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+  $("cot-live").hidden = !db;
+  const dol0 = itens.find((i) => i.cat === "Dólar");
+  const dol = dol0 && typeof dolarAgora !== "undefined" && dolarAgora ? { ...dol0, valor: dolarAgora.valor, variacao: dolarAgora.variacao, dataRef: iso(new Date(dolarAgora.quando)) } : dol0;
+  $("cot-dolar").hidden = !dol;
+  if (dol) { const vv = fmtVar(dol.variacao); $("cot-dolar").innerHTML = `<span class="label">Dólar</span><b class="nums">${fmtPreco(dol.valor)}</b><span class="var ${vv.cls}">${vv.txt}</span><span class="s">${fmtDia(dol.dataRef)}</span>`; }
+  $("cot-scope").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.scope === cotScope));
+  const nq = norm(($("cot-busca").value || "").trim());
+  const vis = itens.filter((i) => i.cat !== "Dólar" && (cotScope === "todos" || i.mg) && (!nq || norm(i.produto + " " + i.local + " " + i.fonte).includes(nq)));
+  const cats = CAT_ORDEM.filter((c) => vis.some((i) => i.cat === c));
+  if (cotFiltro !== "Todos" && !cats.includes(cotFiltro)) cotFiltro = "Todos";
+  $("cot-chips").innerHTML = ["Todos", ...cats].map((n) => `<button type="button" class="fchip" aria-pressed="${n === cotFiltro}" data-grupo="${esc(n)}">${esc(n)}</button>`).join("");
+  const html = cats.filter((c) => cotFiltro === "Todos" || c === cotFiltro).map((c) => {
+    const prods = [];
+    vis.filter((i) => i.cat === c).forEach((i) => { let p = prods.find((x) => x.nome === i.produto); if (!p) prods.push(p = { nome: i.produto, rows: [] }); p.rows.push(i); });
+    return `<section class="cat"><h3>${esc(c)}</h3><div class="prods">${prods.map((p) => {
+      const units = [...new Set(p.rows.map((r) => r.unidade))];
+      return `<article class="prod"><header><h4>${esc(p.nome)}</h4>${units.length === 1 ? `<span>por ${esc(units[0])}</span>` : ""}</header>${p.rows.map((r) => {
+        const pr = fmtPreco(r.valor, r.moeda); const vv = fmtVar(r.variacao);
+        return `<div class="row${r.bolsa ? " bolsa" : ""}" data-cot="${esc(r.id)}" role="button" tabindex="0"><div class="loc">${r.bolsa ? '<span class="tag">Bolsa</span>' : ""}${esc(r.local)}${window.temAlerta && temAlerta(r.id) ? '<span class="bell">alerta</span>' : ""}</div>
+          <div class="pr nums">${pr ?? "—"}${pr && units.length > 1 ? `<small>/${esc(r.unidade)}</small>` : ""}</div>
+          <div class="src">${esc(r.fonte)}${fmtDia(r.dataRef) ? " · " + fmtDia(r.dataRef) : ""}</div>
+          <div class="var ${vv.cls}">${pr ? vv.txt : "sem cotação"}</div></div>`;
+      }).join("")}</article>`;
+    }).join("")}</div></section>`;
+  }).join("");
+  setTimeout(() => window.afterCot && afterCot(), 0);
+  $("cot-groups").innerHTML = html || `<div class="empty">${itens.length ? "Nada encontrado com esse filtro." : "Nenhuma cotação disponível ainda."}</div>`;
+}
+
+const extraRenders = [];
+function render() { renderPainel(); renderMesFilter(); renderLancs(); renderAtivs(); renderTalhoes(); extraRenders.forEach((f) => f()); }
+
+/* ---------- Ações ---------- */
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+function note(msg) { $("note").textContent = msg; $("note").hidden = !msg; }
+
+$("seg-tipo").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  tipoLanc = b.dataset.v;
+  $("seg-tipo").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  fillCats();
+});
+
+function parseValor(s) { return Number(String(s).replace(/\s|R\$/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); }
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+async function save(coll, item, list) {
+  const { id, ...body } = item;
+  if (db) {
+    try { await db.collection(coll).doc(id).set(body); return true; }
+    catch (e) { handleWriteError(e); return false; }
+  }
+  list.push(item); render(); return true;
+}
+async function remove(coll, id, listName) {
+  if (db) { try { await db.collection(coll).doc(id).delete(); } catch (e) { handleWriteError(e); } return; }
+  if (listName === "l") lancs = lancs.filter((x) => x.id !== id); else ativs = ativs.filter((x) => x.id !== id);
+  render();
+}
+function handleWriteError(e) {
+  if (e && (e.code === "invalid_argument" || e.code === "permission-denied")) { canWrite = false; setFormsEnabled(false); note("Você pode ver os dados, mas não pode alterar esta fazenda."); render(); }
+  else if (e && e.code === "quota_exceeded") toast("Limite de registros atingido. Exclua lançamentos antigos.");
+  else toast("Não foi possível salvar agora. Tente de novo.");
+}
+function setFormsEnabled(on) {
+  document.querySelectorAll("form.entry, .add-btn").forEach((f) => f.hidden = !on);
+}
+
+$("f-lanc").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const valor = parseValor($("l-valor").value);
+  if (!(valor > 0)) { toast("Informe um valor maior que zero."); $("l-valor").focus(); return; }
+  const item = { id: newId(), tipo: tipoLanc, descricao: $("l-desc").value.trim(), valor: Math.round(valor * 100) / 100,
+    data: $("l-data").value, categoria: $("l-cat").value, talhao: $("l-talhao").value.trim() };
+  $("l-save").disabled = true;
+  const ok = await save("lancamentos", item, lancs);
+  $("l-save").disabled = false;
+  if (ok) { $("l-desc").value = ""; $("l-valor").value = ""; toast("Lançamento salvo"); }
+});
+$("f-ativ").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const item = { id: newId(), tipo: $("a-tipo").value, talhao: $("a-talhao").value.trim(), data: $("a-data").value,
+    detalhes: $("a-det").value.trim(), responsavel: $("a-resp").value.trim(), feita: $("a-data").value < TODAY };
+  $("a-save").disabled = true;
+  const ok = await save("atividades", item, ativs);
+  $("a-save").disabled = false;
+  if (ok) { $("a-det").value = ""; toast("Atividade registrada"); }
+});
+$("flt-mes").addEventListener("change", renderLancs);
+$("flt-status").addEventListener("change", renderAtivs);
+$("cot-busca").addEventListener("input", () => renderCot());
+$("cot-scope").addEventListener("click", (e) => { const b = e.target.closest("[data-scope]"); if (!b) return; cotScope = b.dataset.scope; renderCot(); });
+$("cot-chips").addEventListener("click", (e) => { const b = e.target.closest("[data-grupo]"); if (!b) return; cotFiltro = b.dataset.grupo; renderCot(); });
+
+document.addEventListener("click", async (e) => {
+  const dl = e.target.closest("[data-del-l],[data-del-a]");
+  if (dl) {
+    if (!dl.classList.contains("danger")) {   // confirmação em dois toques
+      dl.classList.add("danger"); dl.textContent = "Confirmar?";
+      setTimeout(() => { if (dl.isConnected) { dl.classList.remove("danger"); dl.textContent = "Excluir"; } }, 3000);
+      return;
+    }
+    if (dl.dataset.delL) await remove("lancamentos", dl.dataset.delL, "l");
+    else await remove("atividades", dl.dataset.delA, "a");
+    toast("Excluído");
+    return;
+  }
+  const tg = e.target.closest("[data-toggle]");
+  if (tg) {
+    const a = ativs.find((x) => x.id === tg.dataset.toggle); if (!a) return;
+    if (db) { try { await db.collection("atividades").doc(a.id).update({ feita: !a.feita }); } catch (err) { handleWriteError(err); } }
+    else { a.feita = !a.feita; render(); }
+  }
+});
+
+/* ---------- Dados ---------- */
+const COT_INICIAL = {"atualizadoEm": "2026-11-05T02:10:00Z", "itens": [{"bolsa": false, "cat": "Dólar", "dataRef": "2026-11-04", "fonte": "Mercado", "id": "dolar", "local": "Fechamento à vista", "mg": false, "produto": "Dólar comercial", "unidade": "US$ 1", "valor": 5.451, "variacao": -0.64}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "soja-udi", "local": "Uberlândia", "mg": true, "produto": "Soja", "unidade": "saca 60 kg", "valor": 149, "variacao": 0.3}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Grão Direto", "id": "soja-uba", "local": "Uberaba", "mg": true, "produto": "Soja", "unidade": "saca 60 kg", "valor": 147.69, "variacao": -0.22}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Grão Direto", "id": "soja-ptc", "local": "Patrocínio", "mg": true, "produto": "Soja", "unidade": "saca 60 kg", "valor": 143.66, "variacao": -0.93}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Grão Direto", "id": "soja-pdm", "local": "Patos de Minas", "mg": true, "produto": "Soja", "unidade": "saca 60 kg", "valor": 145.65, "variacao": 0.37}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Grão Direto", "id": "soja-unai", "local": "Unaí", "mg": true, "produto": "Soja", "unidade": "saca 60 kg", "valor": 141.9, "variacao": 0.31}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "soja-pgua", "local": "Porto de Paranaguá (PR)", "mg": false, "produto": "Soja", "unidade": "saca 60 kg", "valor": 159.28, "variacao": 0.25}, {"bolsa": true, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "B3", "id": "soja-b3", "local": "Bolsa B3 · jan/27", "mg": false, "moeda": "USD", "produto": "Soja", "unidade": "saca 60 kg", "valor": 26.55, "variacao": -0.9}, {"bolsa": true, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "CME", "id": "soja-cbot", "local": "Bolsa de Chicago · jan/27", "mg": false, "moeda": "USD", "produto": "Soja", "unidade": "bushel", "valor": 12.0225, "variacao": -0.97}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "milho-udi", "local": "Uberlândia", "mg": true, "produto": "Milho", "unidade": "saca 60 kg", "valor": 60, "variacao": -1.6}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "BBM", "id": "milho-udi-uba", "local": "Uberlândia e Uberaba", "mg": true, "produto": "Milho", "unidade": "saca 60 kg", "valor": 63, "variacao": 0.2}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "milho-pdm", "local": "Patos de Minas", "mg": true, "produto": "Milho", "unidade": "saca 60 kg", "valor": 60, "variacao": -1.6}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "milho-cepea", "local": "Campinas (SP) · indicador", "mg": false, "produto": "Milho", "unidade": "saca 60 kg", "valor": 66.19, "variacao": 0.84}, {"bolsa": true, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "B3", "id": "milho-b3", "local": "Bolsa B3 · nov/26", "mg": false, "produto": "Milho", "unidade": "saca 60 kg", "valor": 67.35, "variacao": 0.19}, {"bolsa": true, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "CME", "id": "milho-cbot", "local": "Bolsa de Chicago · dez/26", "mg": false, "moeda": "USD", "produto": "Milho", "unidade": "bushel", "valor": 4.425, "variacao": -1.28}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea, nota 9+", "id": "feijao-tri", "local": "Carioca · Triângulo Mineiro", "mg": true, "produto": "Feijão", "unidade": "saca 60 kg", "valor": 309, "variacao": 0.32}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "BBM", "id": "feijao-noroeste", "local": "Paracatu e Unaí", "mg": true, "produto": "Feijão", "unidade": "saca 60 kg", "valor": 308.65, "variacao": -0.08}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea, nota 9+", "id": "feijao-sp", "local": "Carioca · São Paulo", "mg": false, "produto": "Feijão", "unidade": "saca 60 kg", "valor": 355.73, "variacao": 0}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea", "id": "feijao-preto", "local": "Preto · Curitiba (PR)", "mg": false, "produto": "Feijão", "unidade": "saca 60 kg", "valor": 289.25, "variacao": 0.79}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Mercado físico", "id": "sorgo", "local": "Rio Verde (GO)", "mg": false, "produto": "Sorgo", "unidade": "saca 60 kg", "valor": 44, "variacao": 1.15}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "trigo-pr", "local": "Paraná", "mg": false, "produto": "Trigo", "unidade": "tonelada", "valor": 1565.43, "variacao": -0.28}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "trigo-rs", "local": "Rio Grande do Sul", "mg": false, "produto": "Trigo", "unidade": "tonelada", "valor": 1484.33, "variacao": 0.15}, {"bolsa": false, "cat": "Grãos", "dataRef": "2026-11-04", "fonte": "Esalq/Senar-RS", "id": "arroz", "local": "Rio Grande do Sul", "mg": false, "produto": "Arroz em casca", "unidade": "saca 50 kg", "valor": 82.01, "variacao": -0.32}, {"bolsa": false, "cat": "Grãos", "dataRef": "", "fonte": "Agrolink, média do mês", "id": "girassol", "local": "Média Brasil · nov/26", "mg": false, "produto": "Girassol", "unidade": "saca 60 kg", "valor": 121.67, "variacao": null}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-04", "fonte": "Expocaccer", "id": "cafe-ptc-6", "local": "Patrocínio · tipo 6 duro", "mg": true, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1780, "variacao": null}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-04", "fonte": "Expocaccer", "id": "cafe-ptc-67", "local": "Patrocínio · tipo 6/7 duro", "mg": true, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1740, "variacao": null}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-04", "fonte": "Expocaccer", "id": "cafe-ptc-cd", "local": "Patrocínio · cereja descascado", "mg": true, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1820, "variacao": null}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-04", "fonte": "Coocacer", "id": "cafe-agi", "local": "Araguari · tipo 6 duro", "mg": true, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1700, "variacao": -1.73}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "cafe-pdm", "local": "Patos de Minas · tipo 6", "mg": true, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1621.88, "variacao": 0.7}, {"id": "cafe-cxp-6", "cat": "Café", "produto": "Café arábica", "local": "Cooxupé matriz · Guaxupé (Sul de Minas) · tipo 6 duro", "fonte": "Cooxupé · preço da matriz, não vale para as unidades do Cerrado", "unidade": "saca 60 kg", "mg": true, "bolsa": false, "valor": 1702.0, "variacao": -1.73, "dataRef": "2026-11-04"}, {"id": "cafe-cxp-67", "cat": "Café", "produto": "Café arábica", "local": "Cooxupé matriz · Guaxupé (Sul de Minas) · tipo 6/7 duro", "fonte": "Cooxupé · preço da matriz, não vale para as unidades do Cerrado", "unidade": "saca 60 kg", "mg": true, "bolsa": false, "valor": 1676.0, "variacao": -1.76, "dataRef": "2026-11-04"}, {"id": "cafe-cxp-cd", "cat": "Café", "produto": "Café arábica", "local": "Cooxupé matriz · Guaxupé (Sul de Minas) · cereja descascado", "fonte": "Cooxupé · preço da matriz, não vale para as unidades do Cerrado", "unidade": "saca 60 kg", "mg": true, "bolsa": false, "valor": 1765.0, "variacao": -1.67, "dataRef": "2026-11-04"}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "cafe-cepea", "local": "Indicador nacional", "mg": false, "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 1611.06, "variacao": 0.79}, {"bolsa": true, "cat": "Café", "dataRef": "2026-11-04", "fonte": "B3", "id": "cafe-b3", "local": "Bolsa B3 · dez/26", "mg": false, "moeda": "USD", "produto": "Café arábica", "unidade": "saca 60 kg", "valor": 350.1, "variacao": -1.66}, {"bolsa": true, "cat": "Café", "dataRef": "2026-11-04", "fonte": "ICE", "id": "cafe-ny", "local": "Bolsa de Nova York · dez/26", "mg": false, "moeda": "USD", "produto": "Café arábica", "unidade": "libra-peso", "valor": 2.7975, "variacao": -1.48}, {"bolsa": false, "cat": "Café", "dataRef": "2026-11-03", "fonte": "Mercado físico", "id": "conilon-es", "local": "Vitória (ES) · conilon 7/8", "mg": false, "produto": "Café conilon / robusta", "unidade": "saca 60 kg", "valor": 960, "variacao": null}, {"bolsa": true, "cat": "Café", "dataRef": "2026-11-04", "fonte": "ICE Londres", "id": "robusta-ldn", "local": "Bolsa de Londres · nov/26", "mg": false, "moeda": "USD", "produto": "Café conilon / robusta", "unidade": "tonelada", "valor": 3243, "variacao": null}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "boi-udi", "local": "Uberlândia", "mg": true, "produto": "Boi gordo", "unidade": "arroba", "valor": 376, "variacao": 1.3}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-10-30", "fonte": "Scot Consultoria", "id": "boi-tri", "local": "Triângulo Mineiro", "mg": true, "produto": "Boi gordo", "unidade": "arroba", "valor": 371, "variacao": null}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-10-30", "fonte": "Datagro", "id": "boi-mg", "local": "Minas Gerais", "mg": true, "produto": "Boi gordo", "unidade": "arroba", "valor": 377.87, "variacao": 0.01}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Cepea/B3", "id": "boi-sp", "local": "São Paulo · indicador", "mg": false, "produto": "Boi gordo", "unidade": "arroba", "valor": 390, "variacao": 0.03}, {"bolsa": true, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "B3", "id": "boi-b3", "local": "Bolsa B3 · dez/26", "mg": false, "produto": "Boi gordo", "unidade": "arroba", "valor": 408, "variacao": 0.62}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "vaca-udi", "local": "Uberlândia", "mg": true, "produto": "Vaca gorda", "unidade": "arroba", "valor": 351, "variacao": 1.4}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-10-30", "fonte": "Scot Consultoria", "id": "vaca-tri", "local": "Triângulo Mineiro", "mg": true, "produto": "Vaca gorda", "unidade": "arroba", "valor": 351, "variacao": null}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-10-30", "fonte": "Datagro", "id": "vaca-mg", "local": "Minas Gerais", "mg": true, "produto": "Vaca gorda", "unidade": "arroba", "valor": 338.37, "variacao": 0.17}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-04", "fonte": "Agrolink", "id": "novilha-udi", "local": "Uberlândia", "mg": true, "produto": "Novilha gorda", "unidade": "arroba", "valor": 361, "variacao": 0.6}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Datagro", "id": "rep-desmama", "local": "Desmama · Minas Gerais", "mg": true, "produto": "Reposição nelore", "unidade": "kg vivo", "valor": 19.63, "variacao": -1.75}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Datagro", "id": "rep-bezerro", "local": "Bezerro · Minas Gerais", "mg": true, "produto": "Reposição nelore", "unidade": "kg vivo", "valor": 18.68, "variacao": -1.48}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Datagro", "id": "rep-garrote", "local": "Garrote · Minas Gerais", "mg": true, "produto": "Reposição nelore", "unidade": "kg vivo", "valor": 17.13, "variacao": -0.98}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Datagro", "id": "rep-boimagro", "local": "Boi magro · Minas Gerais", "mg": true, "produto": "Reposição nelore", "unidade": "kg vivo", "valor": 15.31, "variacao": -0.46}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-11-03", "fonte": "Esalq/B3", "id": "bezerro-ms", "local": "Bezerro · Mato Grosso do Sul", "mg": false, "produto": "Reposição nelore", "unidade": "por cabeça", "valor": 3571.2, "variacao": -0.05}, {"bolsa": false, "cat": "Pecuária", "dataRef": "2026-09-16", "fonte": "Agrolink", "id": "leite-udi", "local": "Uberlândia", "mg": true, "produto": "Leite ao produtor", "unidade": "litro", "valor": 3.3, "variacao": 1.9}, {"bolsa": false, "cat": "Pecuária", "dataRef": "", "fonte": "Cepea", "id": "leite-mg", "local": "Minas Gerais · ref. ago/26", "mg": true, "produto": "Leite ao produtor", "unidade": "litro", "valor": 3.0446, "variacao": null}, {"bolsa": false, "cat": "Pecuária", "dataRef": "", "fonte": "Cepea", "id": "leite-br", "local": "Média Brasil · ref. ago/26", "mg": false, "produto": "Leite ao produtor", "unidade": "litro", "valor": 2.8869, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-04", "fonte": "Agrolink, beneficiador", "id": "batata-udi-esp", "local": "Uberlândia · ágata especial", "mg": true, "produto": "Batata", "unidade": "saca 25 kg", "valor": 58.75, "variacao": 6.8}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-04", "fonte": "Agrolink, beneficiador", "id": "batata-udi-pri", "local": "Uberlândia · ágata primeira", "mg": true, "produto": "Batata", "unidade": "saca 25 kg", "valor": 27.5, "variacao": 10}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "batata-ceasa-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Batata", "unidade": "kg", "valor": 4, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "tomate-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Tomate", "unidade": "kg", "valor": 13.62, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-03", "fonte": "Ceasa BH", "id": "tomate-bh", "local": "Ceasa BH · longa vida extra A", "mg": true, "produto": "Tomate", "unidade": "kg", "valor": 7, "variacao": 0}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "cebola-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Cebola", "unidade": "kg", "valor": 2, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-03", "fonte": "Ceasa BH", "id": "cebola-bh", "local": "Ceasa BH · amarela mineira", "mg": true, "produto": "Cebola", "unidade": "kg", "valor": 6, "variacao": 0}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "cenoura-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Cenoura", "unidade": "kg", "valor": 2.5, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "mandioca-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Mandioca", "unidade": "kg", "valor": 2.4, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "alface-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Alface", "unidade": "dúzia", "valor": 48, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "banana-nanica-udi", "local": "Nanica · Ceasa Uberlândia", "mg": true, "produto": "Banana", "unidade": "kg", "valor": 2.19, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "banana-prata-udi", "local": "Prata · Ceasa Uberlândia", "mg": true, "produto": "Banana", "unidade": "kg", "valor": 2.81, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-02", "fonte": "CeasaMinas", "id": "laranja-udi", "local": "Ceasa Uberlândia", "mg": true, "produto": "Laranja", "unidade": "kg", "valor": 2.5, "variacao": null}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "laranja-ind", "local": "Para indústria · SP", "mg": false, "produto": "Laranja", "unidade": "caixa 40,8 kg", "valor": 29.14, "variacao": 2.53}, {"bolsa": false, "cat": "Hortifrúti", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "laranja-pera", "local": "Pera in natura · SP", "mg": false, "produto": "Laranja", "unidade": "caixa 40,8 kg", "valor": 32.73, "variacao": 3.61}, {"bolsa": false, "cat": "Cana e fibras", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "acucar", "local": "São Paulo", "mg": false, "produto": "Açúcar cristal", "unidade": "saca 50 kg", "valor": 127.33, "variacao": -0.79}, {"bolsa": false, "cat": "Cana e fibras", "dataRef": "2026-10-30", "fonte": "Cepea/Esalq", "id": "etanol", "local": "Indicador semanal", "mg": false, "produto": "Etanol hidratado", "unidade": "litro", "valor": 2.8135, "variacao": 2.68}, {"bolsa": false, "cat": "Cana e fibras", "dataRef": "2026-11-04", "fonte": "Cepea/Esalq", "id": "algodao", "local": "Indicador nacional", "mg": false, "produto": "Algodão em pluma", "unidade": "libra-peso", "valor": 4.0992, "variacao": -0.24}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Cepea", "id": "suino-mg", "local": "Minas Gerais", "mg": true, "produto": "Suíno vivo", "unidade": "kg", "valor": 6.95, "variacao": 0}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Cepea", "id": "suino-sp", "local": "São Paulo", "mg": false, "produto": "Suíno vivo", "unidade": "kg", "valor": 6.71, "variacao": -1.47}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Deral", "id": "frango-vivo", "local": "Vivo · Paraná", "mg": false, "produto": "Frango", "unidade": "kg", "valor": 5, "variacao": 0}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Cepea/Esalq", "id": "frango-cong", "local": "Congelado · atacado SP", "mg": false, "produto": "Frango", "unidade": "kg", "valor": 8.21, "variacao": -0.12}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Cepea, variação semanal", "id": "ovos-brancos", "local": "Brancos · Bastos (SP)", "mg": false, "produto": "Ovos", "unidade": "caixa 30 dúzias", "valor": 129.29, "variacao": 6.53}, {"bolsa": false, "cat": "Suínos, aves e ovos", "dataRef": "2026-11-03", "fonte": "Cepea, variação semanal", "id": "ovos-vermelhos", "local": "Vermelhos · Bastos (SP)", "mg": false, "produto": "Ovos", "unidade": "caixa 30 dúzias", "valor": 143.22, "variacao": 6.9}]};
+const HIST_INICIAL = {"acucar": [["2026-11-03", 127.33]], "alface-udi": [["2026-11-02", 48]], "algodao": [["2026-11-04", 4.0992]], "arroz": [["2026-11-04", 82.01]], "banana-nanica-udi": [["2026-11-02", 2.19]], "banana-prata-udi": [["2026-11-02", 2.81]], "batata-ceasa-udi": [["2026-11-02", 4]], "batata-udi-esp": [["2026-11-04", 58.75]], "batata-udi-pri": [["2026-11-04", 27.5]], "bezerro-ms": [["2026-11-03", 3571.2]], "boi-b3": [["2026-11-03", 408]], "boi-mg": [["2026-10-30", 377.87]], "boi-sp": [["2026-11-03", 390]], "boi-tri": [["2026-10-30", 371]], "boi-udi": [["2026-11-04", 376]], "cafe-agi": [["2026-11-04", 1700]], "cafe-b3": [["2026-11-04", 350.1]], "cafe-cepea": [["2026-11-03", 1611.06]], "cafe-ny": [["2026-11-04", 2.7975]], "cafe-pdm": [["2026-10-22", 1636.67], ["2026-10-23", 1643.75], ["2026-10-26", 1622.22], ["2026-10-27", 1637.78], ["2026-10-28", 1624.44], ["2026-10-29", 1612.78], ["2026-10-30", 1606.67], ["2026-11-02", 1606.67], ["2026-11-03", 1611.11], ["2026-11-04", 1621.88]], "cafe-ptc-6": [["2026-11-04", 1780]], "cafe-ptc-67": [["2026-11-04", 1740]], "cafe-ptc-cd": [["2026-11-04", 1820]], "cebola-bh": [["2026-11-03", 6]], "cebola-udi": [["2026-11-02", 2]], "cenoura-udi": [["2026-11-02", 2.5]], "conilon-es": [["2026-11-03", 960]], "dolar": [["2026-11-04", 5.451]], "etanol": [["2026-10-30", 2.8135]], "feijao-noroeste": [["2026-11-04", 308.65]], "feijao-preto": [["2026-11-03", 289.25]], "feijao-sp": [["2026-11-03", 355.73]], "feijao-tri": [["2026-11-03", 309]], "frango-cong": [["2026-11-03", 8.21]], "frango-vivo": [["2026-11-03", 5]], "laranja-ind": [["2026-11-03", 29.14]], "laranja-pera": [["2026-11-03", 32.73]], "laranja-udi": [["2026-11-02", 2.5]], "leite-udi": [["2026-09-16", 3.3]], "mandioca-udi": [["2026-11-02", 2.4]], "milho-b3": [["2026-11-03", 67.35]], "milho-cbot": [["2026-11-03", 4.425]], "milho-cepea": [["2026-11-03", 66.19]], "milho-pdm": [["2026-10-22", 60], ["2026-10-23", 60], ["2026-10-26", 60], ["2026-10-27", 60], ["2026-10-28", 60], ["2026-10-29", 60], ["2026-10-30", 60], ["2026-11-02", 60], ["2026-11-03", 60], ["2026-11-04", 60]], "milho-udi": [["2026-11-04", 60]], "milho-udi-uba": [["2026-11-04", 63]], "novilha-udi": [["2026-11-04", 361]], "ovos-brancos": [["2026-11-03", 129.29]], "ovos-vermelhos": [["2026-11-03", 143.22]], "rep-bezerro": [["2026-10-30", 18.96], ["2026-11-03", 18.68]], "rep-boimagro": [["2026-10-30", 15.38], ["2026-11-03", 15.31]], "rep-desmama": [["2026-10-30", 19.98], ["2026-11-03", 19.63]], "rep-garrote": [["2026-10-30", 17.3], ["2026-11-03", 17.13]], "robusta-ldn": [["2026-11-04", 3243]], "soja-b3": [["2026-11-04", 26.55]], "soja-cbot": [["2026-11-04", 12.0225]], "soja-pdm": [["2026-11-03", 145.65]], "soja-pgua": [["2026-10-29", 158.28], ["2026-10-30", 158.88], ["2026-11-03", 159.28]], "soja-ptc": [["2026-11-03", 143.66]], "soja-uba": [["2026-11-03", 147.69]], "soja-udi": [["2026-11-04", 149]], "soja-unai": [["2026-11-03", 141.9]], "sorgo": [["2026-11-03", 44]], "suino-mg": [["2026-11-03", 6.95]], "suino-sp": [["2026-11-03", 6.71]], "tomate-bh": [["2026-11-03", 7]], "tomate-udi": [["2026-11-02", 13.62]], "trigo-pr": [["2026-11-03", 1565.43]], "trigo-rs": [["2026-11-03", 1484.33]], "vaca-mg": [["2026-10-30", 338.37]], "vaca-tri": [["2026-10-30", 351]], "vaca-udi": [["2026-11-04", 351]], "cafe-cxp-6": [["2026-11-04", 1702.0]], "cafe-cxp-67": [["2026-11-04", 1676.0]], "cafe-cxp-cd": [["2026-11-04", 1765.0]]};
+function exemplo() {
+  const d = (off) => { const x = new Date(today); x.setDate(x.getDate() + off); return iso(x); };
+  lancs = [
+    { id: "e1", tipo: "despesa", descricao: "Adubo NPK 20-05-20 (40 sc)", valor: 7800, data: d(-2), categoria: "Insumos", talhao: "Lavoura de café" },
+    { id: "e2", tipo: "despesa", descricao: "Diesel trator", valor: 1350, data: d(-1), categoria: "Combustível", talhao: "" },
+    { id: "e3", tipo: "receita", descricao: "Venda de café (60 sc)", valor: 84000, data: d(-3), categoria: "Venda de produção", talhao: "Lavoura de café" },
+    { id: "e4", tipo: "despesa", descricao: "Diárias colheita", valor: 2400, data: d(0), categoria: "Mão de obra", talhao: "Lavoura de café" },
+  ];
+  ativs = [
+    { id: "a1", tipo: "Pulverização", talhao: "Lavoura de soja", data: d(2), detalhes: "Fungicida 0,5 L/ha em 18 ha", responsavel: "", feita: false },
+    { id: "a2", tipo: "Adubação", talhao: "Lavoura de café", data: d(-2), detalhes: "NPK 300 g/cova", responsavel: "", feita: true },
+    { id: "a3", tipo: "Manejo do gado", talhao: "Pasto 4", data: d(5), detalhes: "Vacinação aftosa – 42 cabeças", responsavel: "", feita: false },
+  ];
+}
+
+render();
+
+function iniciarDemo() {
+  exemplo(); window.onDemo && onDemo(); render(); renderCot(COT_INICIAL);
+  note("Modo de demonstração: o Firebase ainda não foi configurado. Os dados não ficam salvos.");
+}
+function iniciarDados(base) {
+  db = base;
+  let first = { l: false, a: false };
+  const timer = setTimeout(() => note("Não foi possível carregar os dados ainda. Verifique sua conexão."), 10000);
+  const done = (k, snap) => { if (!snap.metadata.fromCache) { first[k] = true; if (first.l && first.a) { clearTimeout(timer); if (canWrite) note(""); } } };
+  db.collection("lancamentos").onSnapshot((snap) => {
+    lancs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); done("l", snap); render();
+  }, () => { clearTimeout(timer); note("Os lançamentos não puderam ser carregados."); });
+  db.doc("cotacoes/atual").onSnapshot((snap) => {
+    if (snap.exists) renderCot(snap.data());
+    else { renderCot(COT_INICIAL); $("cot-upd").textContent = "Preços de 04/11 · o robô de cotações ainda não foi ligado"; }
+  }, () => { renderCot(COT_INICIAL); $("cot-upd").textContent = "Preços de 04/11 · sem conexão com o servidor"; });
+  window.onDbReady && onDbReady(db);
+  db.collection("atividades").onSnapshot((snap) => {
+    ativs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); done("a", snap); render();
+  }, () => { clearTimeout(timer); note("As atividades não puderam ser carregadas."); });
+}
+</script>
+<script>
+/* ===== Módulos: alertas, histórico, talhões, rebanho, estoque, tempo ===== */
+const CULTURAS = ["Pasto (gado)", "Lavoura de café", "Lavoura de soja", "Lavoura de milho", "Lavoura de feijão", "Lavoura de sorgo", "Lavoura de trigo", "Lavoura de batata", "Outra lavoura"];
+const ehPasto = (t) => /pasto|pastagem/i.test(t.cultura || "");
+const CAT_LOTE = {
+  "Boi gordo": { id: "boi-udi", modo: "arroba" }, "Vaca gorda": { id: "vaca-udi", modo: "arroba" }, "Novilha gorda": { id: "novilha-udi", modo: "arroba" },
+  "Desmama": { id: "rep-desmama", modo: "kg" }, "Bezerro(a)": { id: "rep-bezerro", modo: "kg" }, "Garrote": { id: "rep-garrote", modo: "kg" }, "Boi magro": { id: "rep-boimagro", modo: "kg" },
+  "Vaca de cria": null, "Vaca de leite": null, "Touro": null,
+};
+const TIPOS_EV = ["Pesagem", "Vacina", "Vermifugação", "Nascimento", "Compra", "Venda", "Morte", "Outro"];
+const COLL = { talhoes: "talhoes", lotes: "lotes", eventos: "eventosRebanho", estoque: "estoque", alertas: "alertas" };
+const st = { talhoes: [], lotes: [], eventos: [], estoque: [], alertas: [] };
+let historico = HIST_INICIAL, tempo = null, cidade = "", fazendaGeo = null;
+
+CULTURAS.forEach((c) => $("t-cult").add(new Option(c, c)));
+Object.keys(CAT_LOTE).forEach((c) => $("lo-cat").add(new Option(c, c)));
+
+const num = (s) => { const v = parseValor(s); return isFinite(v) ? v : NaN; };
+const fmtN = (v, d = 0) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d });
+const cotItens = () => (cotData && Array.isArray(cotData.itens) ? cotData.itens : []);
+const cotItem = (id) => cotItens().find((i) => i.id === id);
+function precoBRL(id) { const it = cotItem(id); return it && it.moeda !== "USD" && it.valor !== null && isFinite(+it.valor) ? +it.valor : null; }
+const nomeItem = (it) => it ? `${it.produto} · ${it.local}` : "Produto removido";
+
+/* ---------- gravação genérica ---------- */
+async function put(key, item) {
+  const { id, ...body } = item;
+  if (db) { try { await db.collection(COLL[key]).doc(id).set(body); return true; } catch (e) { handleWriteError(e); return false; } }
+  const i = st[key].findIndex((x) => x.id === id); if (i >= 0) st[key][i] = item; else st[key].push(item); render(); return true;
+}
+async function patch(key, id, fields) {
+  if (db) { try { await db.collection(COLL[key]).doc(id).update(fields); return true; } catch (e) { handleWriteError(e); return false; } }
+  const it = st[key].find((x) => x.id === id); if (it) Object.assign(it, fields); render(); return true;
+}
+async function del(key, id) {
+  if (db) { try { await db.collection(COLL[key]).doc(id).delete(); } catch (e) { handleWriteError(e); } return; }
+  st[key] = st[key].filter((x) => x.id !== id); render();
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  if (!b.classList.contains("danger")) {
+    b.classList.add("danger"); b.textContent = "Confirmar?";
+    setTimeout(() => { if (b.isConnected) { b.classList.remove("danger"); b.textContent = "Excluir"; } }, 3000);
+    return;
+  }
+  const [key, id] = b.dataset.del.split(":");
+  await del(key, id);
+  if (key === "lotes") for (const ev of st.eventos.filter((x) => x.loteId === id)) await del("eventos", ev.id);
+  toast("Excluído");
+});
+
+/* ---------- folha (janela inferior) ---------- */
+let sheetOnClose = null;
+function openSheet(title, html, onOpen) {
+  $("sheet-title").textContent = title; $("sheet-body").innerHTML = html; $("sheet").hidden = false;
+  onOpen && onOpen(); const f = $("sheet-body").querySelector("input,select"); f && f.focus({ preventScroll: true });
+}
+function closeSheet() { $("sheet").hidden = true; $("sheet-body").innerHTML = ""; sheetOnClose = null; }
+$("sheet-x").addEventListener("click", closeSheet);
+$("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) closeSheet(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+
+/* ---------- alertas ---------- */
+function alertaAtingido(a) {
+  const p = cotItem(a.itemId); if (!p || p.valor === null) return false;
+  return a.cond === "acima" ? +p.valor >= a.alvo : +p.valor <= a.alvo;
+}
+window.temAlerta = (id) => st.alertas.some((a) => a.itemId === id);
+function fmtItemPreco(it, v) { return fmtPreco(v, it && it.moeda); }
+
+/* ---------- gráfico ---------- */
+function serieDe(id) {
+  const pts = (historico[id] || []).map(([d, v]) => [d, +v]).filter(([d, v]) => d && isFinite(v));
+  const it = cotItem(id);
+  if (it && it.dataRef && it.valor !== null && !pts.some(([d]) => d === it.dataRef)) pts.push([it.dataRef, +it.valor]);
+  return pts.sort((a, b) => a[0].localeCompare(b[0]));
+}
+function chartSVG(pts, moeda, fx = fmtDia) {
+  if (pts.length < 2) return `<div class="empty">O gráfico se forma conforme o app guarda o preço de cada dia. Por enquanto há ${pts.length} registro${pts.length === 1 ? "" : "s"} deste preço.</div>`;
+  const W = 320, H = 150, L = 8, R = 8, T = 18, B = 22;
+  const vs = pts.map((p) => p[1]); let mn = Math.min(...vs), mx = Math.max(...vs);
+  if (mn === mx) { mn -= mn * 0.01 || 1; mx += mx * 0.01 || 1; }
+  const x = (i) => L + (i / (pts.length - 1)) * (W - L - R);
+  const y = (v) => T + (1 - (v - mn) / (mx - mn)) * (H - T - B);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  const area = `${line}L${x(pts.length - 1).toFixed(1)},${H - B}L${L},${H - B}Z`;
+  const up = vs[vs.length - 1] >= vs[0];
+  const col = up ? "var(--good)" : "var(--bad)";
+  const last = pts.length - 1;
+  const fmt = (v) => fmtPreco(v, moeda);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de ${fx(pts[0][0])} a ${fx(pts[last][0])}">
+    <line x1="${L}" x2="${W - R}" y1="${y(mx)}" y2="${y(mx)}" stroke="var(--line)" stroke-dasharray="3 3"/>
+    <line x1="${L}" x2="${W - R}" y1="${y(mn)}" y2="${y(mn)}" stroke="var(--line)" stroke-dasharray="3 3"/>
+    <path d="${area}" fill="${col}" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(last)}" cy="${y(vs[last])}" r="3.5" fill="${col}"/>
+    <text x="${L}" y="${y(mx) - 4}">máx ${fmt(Math.max(...vs))}</text>
+    <text x="${W - R}" y="${y(mn) - 4}" text-anchor="end">mín ${fmt(Math.min(...vs))}</text>
+    <text x="${L}" y="${H - 4}">${fx(pts[0][0])}</text>
+    <text x="${W - R}" y="${H - 4}" text-anchor="end">${fx(pts[last][0])}</text>
+  </svg>`;
+}
+
+/* ---------- detalhe de uma cotação ---------- */
+function abrirCotacao(id) {
+  const it = cotItem(id); if (!it) return;
+  const pts = serieDe(id);
+  const vv = fmtVar(it.variacao);
+  const meus = st.alertas.filter((a) => a.itemId === id);
+  let diff = "";
+  if (pts.length >= 2) { const d = (pts[pts.length - 1][1] / pts[0][1] - 1) * 100; const f = fmtVar(d); diff = `<span class="var ${f.cls}">${f.txt} desde ${fmtDia(pts[0][0])}</span>`; }
+  openSheet(`${it.produto} · ${it.local}`, `
+    <div class="s">${esc(it.fonte)} · por ${esc(it.unidade)}${it.dataRef ? " · " + fmtDia(it.dataRef) : ""}</div>
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:6px"><span class="big-price nums">${fmtItemPreco(it, it.valor) ?? "—"}</span><span class="var ${vv.cls}">${vv.txt}</span>${diff}</div>
+    ${chartSVG(pts, it.moeda)}
+    <h2 style="margin-top:14px">Alertas deste preço</h2>
+    <ul class="list">${meus.length ? meus.map((a) => `<li style="grid-template-columns:minmax(0,1fr) auto"><div class="desc"><div class="t">${a.cond === "acima" ? "Subir para" : "Cair para"} ${fmtItemPreco(it, a.alvo)}</div><div class="s">${alertaAtingido(a) ? '<span class="alerta-ok">Meta atingida</span>' : "Aguardando"}</div></div>${canWrite ? `<button class="icon-btn" data-del="alertas:${a.id}">Excluir</button>` : ""}</li>`).join("") : '<li style="display:block"><div class="empty">Nenhum alerta para este preço.</div></li>'}</ul>
+    ${canWrite ? `<form class="sheet-form" id="f-alerta">
+      <div class="f"><label for="al-cond">Avisar quando</label><select id="al-cond"><option value="acima">subir para</option><option value="abaixo">cair para</option></select></div>
+      <div class="f"><label for="al-alvo">Preço (${it.moeda === "USD" ? "US$" : "R$"})</label><input id="al-alvo" inputmode="decimal" required placeholder="${fmtN(it.valor ?? 0, 2)}"></div>
+      <div class="full"><button class="btn" type="submit">Criar alerta</button></div>
+    </form>
+    <p class="s">Quando o preço chegar na meta, o aviso aparece na tela inicial do app.</p>` : ""}
+  `, () => {
+    const f = $("f-alerta"); if (!f) return;
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const alvo = num($("al-alvo").value); if (!(alvo > 0)) { toast("Informe um preço válido."); return; }
+      const a = { id: newId(), itemId: id, cond: $("al-cond").value, alvo, criadoEm: new Date().toISOString() };
+      if (await put("alertas", a)) { toast("Alerta criado"); abrirCotacao(id); }
+    });
+  });
+}
+document.addEventListener("click", (e) => { const r = e.target.closest("[data-cot]"); if (r) abrirCotacao(r.dataset.cot); });
+document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-cot]")) { e.preventDefault(); abrirCotacao(e.target.dataset.cot); } });
+
+/* ---------- talhões ---------- */
+function resumoTalhao(t) {
+  const k = norm(t.nome);
+  const ls = lancs.filter((l) => norm(l.talhao) === k);
+  const desp = ls.filter((l) => l.tipo === "despesa").reduce((a, l) => a + l.valor, 0);
+  const rec = ls.filter((l) => l.tipo === "receita").reduce((a, l) => a + l.valor, 0);
+  return { desp, rec, custoHa: t.area > 0 ? desp / t.area : null, scHa: t.producao > 0 && t.area > 0 ? t.producao / t.area : null, custoSc: t.producao > 0 ? desp / t.producao : null };
+}
+function renderTalhoesTab() {
+  $("talhoes-list").innerHTML = st.talhoes.length ? st.talhoes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map((t) => {
+    const r = resumoTalhao(t), pasto = ehPasto(t);
+    const lotesAqui = st.lotes.filter((l) => norm(l.pasto) === norm(t.nome));
+    const cabAqui = lotesAqui.reduce((a, l) => a + (+l.cabecas || 0), 0);
+    const tipo0 = pasto ? "Pasto" : String(t.cultura || "").replace(/^Lavoura de /, "").replace(/^Outra lavoura$/, "Lavoura");
+    const tipo = tipo0.charAt(0).toUpperCase() + tipo0.slice(1);
+    return `<article class="card"><div class="card-top"><h3>${esc(t.nome)}</h3><span class="chip${pasto ? " chip-pasto" : ""}">${esc(tipo)}${t.safra && !pasto ? " · " + esc(t.safra) : ""}</span></div>
+      <div class="s">${fmtN(t.area, 1)} hectares${pasto ? ` · ${cabAqui ? fmtN(cabAqui) + " cabeças" : "sem gado cadastrado"}` : ""}</div>
+      <div class="linhas3">
+        <div><span>Gastou</span><b style="color:var(--bad)">${brl(r.desp)}</b></div>
+        <div><span>Ganhou</span><b style="color:var(--good)">${brl(r.rec)}</b></div>
+        <div><span>${r.rec - r.desp >= 0 ? "Sobrou" : "Faltou"}</span><b style="color:${r.rec - r.desp >= 0 ? "var(--good)" : "var(--bad)"}">${brl(Math.abs(r.rec - r.desp))}</b></div>
+      </div>
+      <details class="mais"><summary>Ver mais</summary>
+        <dl class="kv" style="margin-top:8px">
+          <div><dt>Gasto por hectare</dt><dd>${r.custoHa !== null ? brl(r.custoHa) : "—"}</dd></div>
+          ${pasto ? `<div><dt>Cabeças por hectare</dt><dd>${cabAqui && t.area > 0 ? fmtN(cabAqui / t.area, 1) : "—"}</dd></div>
+          <div style="grid-column:1/-1"><dt>Lotes neste pasto</dt><dd>${lotesAqui.length ? lotesAqui.map((l) => esc(l.nome) + " (" + fmtN(l.cabecas) + ")").join(", ") : "—"}</dd></div>
+        </dl>` : `<div><dt>Colheu</dt><dd>${t.producao > 0 ? fmtN(t.producao) + " sacas" : "—"}</dd></div>
+          <div><dt>Sacas por hectare</dt><dd>${r.scHa !== null ? fmtN(r.scHa, 1) : "—"}</dd></div>
+          <div><dt>Custo de cada saca</dt><dd>${r.custoSc !== null ? brl(r.custoSc) : "—"}</dd></div>
+        </dl>`}
+      </details>
+      ${canWrite ? `<div class="card-actions">${pasto ? "" : `<button class="btn small" data-prod="${t.id}">Anotar colheita</button>`}<button class="icon-btn" data-del="talhoes:${t.id}">Excluir</button></div>` : ""}</article>`;
+  }).join("") : `<div class="empty">Nada cadastrado ainda. Cadastre acima uma lavoura ou um pasto.</div>`;
+}
+$("f-talhao").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const area = num($("t-area").value); if (!(area > 0)) { toast("Informe a área em hectares."); return; }
+  const t = { id: newId(), nome: $("t-nome").value.trim(), cultura: $("t-cult").value, area, safra: $("t-safra").value.trim(), producao: 0 };
+  if (await put("talhoes", t)) { $("t-nome").value = ""; $("t-area").value = ""; toast("Cadastrado"); }
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-prod]"); if (!b) return;
+  const t = st.talhoes.find((x) => x.id === b.dataset.prod); if (!t) return;
+  openSheet(`Colheita · ${t.nome}`, `<form class="sheet-form" id="f-prod"><div class="f full"><label for="p-sc">Quantas sacas colheu?</label><input id="p-sc" inputmode="decimal" value="${t.producao || ""}" placeholder="0"></div><div class="full"><button class="btn" type="submit">Salvar</button></div></form>`, () => {
+    $("f-prod").addEventListener("submit", async (ev) => { ev.preventDefault(); const v = num($("p-sc").value); if (!(v >= 0)) { toast("Informe as sacas."); return; } if (await patch("talhoes", t.id, { producao: v })) { closeSheet(); toast("Colheita salva"); } });
+  });
+});
+
+/* ---------- rebanho ---------- */
+function valorLote(l) {
+  const m = CAT_LOTE[l.categoria]; if (!m) return null;
+  const p = precoBRL(m.id); if (p === null || !(l.pesoMedio > 0)) return null;
+  return m.modo === "arroba" ? l.cabecas * (l.pesoMedio / 30) * p : l.cabecas * l.pesoMedio * p;
+}
+function gmdLote(l) {
+  const ps = st.eventos.filter((e) => e.loteId === l.id && e.tipo === "Pesagem" && e.peso > 0).sort((a, b) => a.data.localeCompare(b.data));
+  if (ps.length < 2) return null;
+  const a = ps[ps.length - 2], b = ps[ps.length - 1];
+  const dias = (new Date(b.data) - new Date(a.data)) / 864e5; return dias > 0 ? (b.peso - a.peso) / dias : null;
+}
+function renderRebanho() {
+  const cab = st.lotes.reduce((a, l) => a + (+l.cabecas || 0), 0);
+  const val = st.lotes.reduce((a, l) => a + (valorLote(l) || 0), 0);
+  $("r-cab").textContent = fmtN(cab); $("r-lotes").textContent = fmtN(st.lotes.length); $("r-valor").textContent = brl(val);
+  $("lotes-list").innerHTML = st.lotes.length ? st.lotes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map((l) => {
+    const v = valorLote(l), g = gmdLote(l), m = CAT_LOTE[l.categoria];
+    const evs = st.eventos.filter((e) => e.loteId === l.id).sort((a, b) => b.data.localeCompare(a.data)).slice(0, 3);
+    return `<article class="card"><div class="card-top"><h3>${esc(l.nome)}</h3><span class="chip">${esc(l.categoria)}</span></div>
+      <div class="linhas3">
+        <div><span>Cabeças</span><b>${fmtN(l.cabecas)}</b></div>
+        <div><span>Peso de cada</span><b>${l.pesoMedio > 0 ? fmtN(l.pesoMedio) + " kg" : "—"}</b></div>
+        <div><span>Vale hoje</span><b style="color:var(--good)">${v !== null ? brl(v) : "—"}</b></div>
+      </div>
+      ${v === null ? `<div class="s">${m ? "Anote o peso para ver quanto vale." : "Esse tipo de animal não tem preço de referência."}</div>` : ""}
+      <details class="mais"><summary>Ver mais</summary>
+        <dl class="kv" style="margin-top:8px">
+          <div><dt>${m && m.modo === "arroba" ? "Arrobas do lote" : "Peso do lote"}</dt><dd>${l.pesoMedio > 0 ? (m && m.modo === "arroba" ? fmtN(l.cabecas * l.pesoMedio / 30, 1) + " @" : fmtN(l.cabecas * l.pesoMedio) + " kg") : "—"}</dd></div>
+          <div><dt>Engorda por dia</dt><dd>${g !== null ? fmtN(g, 2) + " kg" : "—"}</dd></div>
+          <div><dt>Pasto</dt><dd>${esc(l.pasto || "—")}</dd></div>
+          <div><dt>Última pesagem</dt><dd>${l.dataPesagem ? fmtDia(l.dataPesagem) : "—"}</dd></div>
+        </dl>
+        ${evs.length ? `<div class="ev">${evs.map((e) => `${fmtDia(e.data)} · ${esc(e.tipo)}${e.qtd ? " · " + fmtN(e.qtd) + " cab." : ""}${e.peso ? " · " + fmtN(e.peso) + " kg" : ""}${e.detalhes ? " · " + esc(e.detalhes) : ""}`).join("<br>")}</div>` : ""}
+      </details>
+      ${canWrite ? `<div class="card-actions"><button class="btn small" data-ev="${l.id}">Anotar pesagem, vacina…</button><button class="icon-btn" data-del="lotes:${l.id}">Excluir</button></div>` : ""}</article>`;
+  }).join("") : `<div class="empty">Nenhum lote ainda. Cadastre acima.</div>`;
+}
+$("f-lote").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const cab = Math.round(num($("lo-cab").value)); if (!(cab > 0)) { toast("Informe o número de cabeças."); return; }
+  const peso = num($("lo-peso").value);
+  const l = { id: newId(), nome: $("lo-nome").value.trim(), categoria: $("lo-cat").value, cabecas: cab, pesoMedio: peso > 0 ? peso : 0, pasto: $("lo-pasto").value.trim(), dataPesagem: peso > 0 ? TODAY : "" };
+  if (await put("lotes", l)) {
+    if (peso > 0) await put("eventos", { id: newId(), loteId: l.id, tipo: "Pesagem", data: TODAY, peso, qtd: cab, detalhes: "Peso no cadastro" });
+    ["lo-nome", "lo-cab", "lo-peso", "lo-pasto"].forEach((i) => $(i).value = ""); toast("Lote cadastrado");
+  }
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ev]"); if (!b) return;
+  const l = st.lotes.find((x) => x.id === b.dataset.ev); if (!l) return;
+  openSheet(`Anotar · ${l.nome}`, `<form class="sheet-form" id="f-ev">
+    <div class="f"><label for="ev-tipo">O que aconteceu?</label><select id="ev-tipo">${TIPOS_EV.map((t) => `<option>${t}</option>`).join("")}</select></div>
+    <div class="f"><label for="ev-data">Data</label><input id="ev-data" type="date" value="${TODAY}" required></div>
+    <div class="f"><label for="ev-qtd">Cabeças</label><input id="ev-qtd" inputmode="numeric" placeholder="${l.cabecas}"></div>
+    <div class="f"><label for="ev-peso">Peso de cada (kg)</label><input id="ev-peso" inputmode="decimal" placeholder="só na pesagem"></div>
+    <div class="f full"><label for="ev-det">Detalhes (se quiser)</label><input id="ev-det" placeholder="Ex.: Vacina aftosa, lote 123"></div>
+    <div class="full"><button class="btn" type="submit">Salvar</button></div>
+    <p class="s full">Pesagem muda o peso do lote. Nascimento e compra somam cabeças. Venda e morte tiram cabeças.</p>
+  </form>`, () => {
+    $("f-ev").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const tipo = $("ev-tipo").value, qtd = Math.round(num($("ev-qtd").value)) || 0, peso = num($("ev-peso").value);
+      if (tipo === "Pesagem" && !(peso > 0)) { toast("Informe o peso médio da pesagem."); return; }
+      const data = $("ev-data").value;
+      const ok = await put("eventos", { id: newId(), loteId: l.id, tipo, data, qtd, peso: peso > 0 ? peso : 0, detalhes: $("ev-det").value.trim() });
+      if (!ok) return;
+      const f = {};
+      if (tipo === "Pesagem" && (!l.dataPesagem || data >= l.dataPesagem)) { f.pesoMedio = peso; f.dataPesagem = data; }
+      if ((tipo === "Nascimento" || tipo === "Compra") && qtd > 0) f.cabecas = l.cabecas + qtd;
+      if ((tipo === "Venda" || tipo === "Morte") && qtd > 0) f.cabecas = Math.max(0, l.cabecas - qtd);
+      if (Object.keys(f).length) await patch("lotes", l.id, f);
+      closeSheet(); toast("Anotado");
+    });
+  });
+});
+
+/* ---------- estoque e calculadora ---------- */
+function opcoesProdutos(sel, valorAtual) {
+  const its = cotItens().filter((i) => i.cat !== "Dólar" && i.moeda !== "USD" && i.id);
+  const ordem = its.slice().sort((a, b) => (b.mg - a.mg) || a.produto.localeCompare(b.produto));
+  const html = ordem.map((i) => `<option value="${esc(i.id)}">${esc(i.produto)} · ${esc(i.local)} (${esc(i.unidade)})</option>`).join("");
+  if (sel.dataset.h !== html) { sel.innerHTML = html; sel.dataset.h = html; }
+  if (valorAtual && [...sel.options].some((o) => o.value === valorAtual)) sel.value = valorAtual;
+}
+function valorEstoque(s) { const p = precoBRL(s.produtoId); return p === null ? null : s.quantidade * p; }
+function renderEstoque() {
+  opcoesProdutos($("e-prod"), $("e-prod").value || "soja-udi");
+  const cSel = $("c-prod"); const cur = cSel.value;
+  const estOpts = st.estoque.map((s) => { const it = cotItem(s.produtoId); return `<option value="est:${s.id}">Meu estoque: ${esc(it ? it.produto : "?")} (${fmtN(s.quantidade)})</option>`; }).join("");
+  const its = cotItens().filter((i) => i.cat !== "Dólar" && i.moeda !== "USD" && i.id).sort((a, b) => (b.mg - a.mg) || a.produto.localeCompare(b.produto));
+  const html = estOpts + its.map((i) => `<option value="cot:${esc(i.id)}">${esc(i.produto)} · ${esc(i.local)}</option>`).join("");
+  if (cSel.dataset.h !== html) { cSel.innerHTML = html; cSel.dataset.h = html; if ([...cSel.options].some((o) => o.value === cur)) cSel.value = cur; else preencherCalc(); }
+  let tot = 0;
+  $("est-list").innerHTML = st.estoque.length ? st.estoque.map((s) => {
+    const it = cotItem(s.produtoId), v = valorEstoque(s); tot += v || 0;
+    return `<li style="grid-template-columns:minmax(0,1fr) auto"><div class="desc"><div class="t">${esc(it ? it.produto : "Produto")} · ${fmtN(s.quantidade, 2)} ${esc(it ? it.unidade.replace(/^saca/, "sc") : "")}</div><div class="s">${it ? "Preço em " + esc(it.local) + ": " + (fmtPreco(it.valor) ?? "—") : ""}${s.local ? " · " + esc(s.local) : ""}</div></div>
+      <div class="actions"><span class="amt nums">${v !== null ? brl(v) : "—"}</span>${canWrite ? `<button class="icon-btn" data-del="estoque:${s.id}">Excluir</button>` : ""}</div></li>`;
+  }).join("") : `<li style="display:block"><div class="empty">Nada guardado ainda. Adicione acima.</div></li>`;
+  $("est-tot").innerHTML = `<span>Tudo junto vale hoje</span><span class="nums">${brl(tot)}</span>`;
+  calc();
+}
+$("f-est").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = num($("e-qtd").value); if (!(q > 0)) { toast("Informe a quantidade."); return; }
+  if (await put("estoque", { id: newId(), produtoId: $("e-prod").value, quantidade: q, local: $("e-local").value.trim() })) { $("e-qtd").value = ""; $("e-local").value = ""; toast("Adicionado ao estoque"); }
+});
+function preencherCalc() {
+  const v = $("c-prod").value || ""; const [t, id] = v.split(":");
+  let item = null, qtd = "";
+  if (t === "est") { const s = st.estoque.find((x) => x.id === id); if (s) { item = cotItem(s.produtoId); qtd = s.quantidade; } }
+  else item = cotItem(id);
+  if (qtd !== "") $("c-qtd").value = fmtN(qtd, 2);
+  if (item && item.valor !== null) $("c-preco").value = fmtN(item.valor, 2);
+  calc();
+}
+function calc() {
+  const q = num($("c-qtd").value) || 0, p = num($("c-preco").value) || 0, fr = num($("c-frete").value) || 0, fu = num($("c-fun").value) || 0, ou = num($("c-out").value) || 0;
+  const bruto = q * p, frete = q * fr, fun = bruto * fu / 100, liq = bruto - frete - fun - ou;
+  $("c-res").innerHTML = `<div><dt>Valor da venda</dt><dd>${brl(bruto)}</dd></div><div><dt>Frete</dt><dd>− ${brl(frete)}</dd></div><div><dt>Funrural</dt><dd>− ${brl(fun)}</dd></div><div><dt>Outros gastos</dt><dd>− ${brl(ou)}</dd></div>
+    <div class="big"><dt>Sobra para você</dt><dd>${brl(liq)}</dd></div><div><dt>Sobra por saca</dt><dd>${q > 0 ? brl(liq / q) : "—"}</dd></div>`;
+}
+$("c-prod").addEventListener("change", preencherCalc);
+["c-qtd", "c-preco", "c-frete", "c-fun", "c-out"].forEach((i) => $(i).addEventListener("input", calc));
+
+/* ---------- tempo ---------- */
+function bomPulv(d) { return d.chuvaProb !== null && d.chuvaProb !== undefined && d.chuvaProb < 30 && (d.ventoKmh === null || d.ventoKmh === undefined || d.ventoKmh < 15); }
+let trocandoCidade = false;
+const UFS = [["AC", "Acre"], ["AL", "Alagoas"], ["AP", "Amapá"], ["AM", "Amazonas"], ["BA", "Bahia"], ["CE", "Ceará"], ["DF", "Distrito Federal"], ["ES", "Espírito Santo"], ["GO", "Goiás"], ["MA", "Maranhão"], ["MT", "Mato Grosso"], ["MS", "Mato Grosso do Sul"], ["MG", "Minas Gerais"], ["PA", "Pará"], ["PB", "Paraíba"], ["PR", "Paraná"], ["PE", "Pernambuco"], ["PI", "Piauí"], ["RJ", "Rio de Janeiro"], ["RN", "Rio Grande do Norte"], ["RS", "Rio Grande do Sul"], ["RO", "Rondônia"], ["RR", "Roraima"], ["SC", "Santa Catarina"], ["SP", "São Paulo"], ["SE", "Sergipe"], ["TO", "Tocantins"]];
+const CIDADES = {"MG": ["Abadia dos Dourados", "Abaeté", "Alfenas", "Araguari", "Araxá", "Arinos", "Bambuí", "Belo Horizonte", "Betim", "Boa Esperança", "Bonfinópolis de Minas", "Buritis", "Cabeceira Grande", "Campina Verde", "Campo Belo", "Campo Florido", "Campos Altos", "Campos Gerais", "Canápolis", "Capelinha", "Capinópolis", "Carmo do Paranaíba", "Carmo do Rio Claro", "Cascalho Rico", "Centralina", "Chapada Gaúcha", "Comendador Gomes", "Conceição das Alagoas", "Conquista", "Contagem", "Coromandel", "Cruzeiro da Fortaleza", "Curvelo", "Delta", "Divinópolis", "Dores do Indaiá", "Douradoquara", "Estrela do Sul", "Formiga", "Formoso", "Fronteira", "Frutal", "Governador Valadares", "Grupiara", "Guarda-Mor", "Guaxupé", "Guimarânia", "Gurinhatã", "Ibiá", "Indianópolis", "Ipatinga", "Iraí de Minas", "Itapagipe", "Ituiutaba", "Iturama", "Janaúba", "Jaíba", "João Pinheiro", "Juiz de Fora", "Lagamar", "Lagoa Formosa", "Lagoa Grande", "Lavras", "Luz", "Machado", "Manhuaçu", "Matutina", "Medeiros", "Monte Alegre de Minas", "Monte Carmelo", "Montes Claros", "Muriaé", "Muzambinho", "Nepomuceno", "Nova Ponte", "Oliveira", "Paracatu", "Passos", "Patos de Minas", "Patrocínio", "Pedrinópolis", "Perdizes", "Pirajuba", "Pirapora", "Piumhi", "Planura", "Pompéu", "Pouso Alegre", "Poços de Caldas", "Prata", "Pratinha", "Presidente Olegário", "Rio Paranaíba", "Romaria", "Sacramento", "Santa Juliana", "Santa Rosa da Serra", "Santa Vitória", "Serra do Salitre", "Sete Lagoas", "São Gotardo", "São Sebastião do Paraíso", "Tapira", "Teófilo Otoni", "Tiros", "Três Marias", "Três Pontas", "Tupaciguara", "Uberaba", "Uberlândia", "Unaí", "Varginha", "Vazante", "Veríssimo", "Viçosa", "Água Comprida"], "GO": ["Acreúna", "Anápolis", "Aparecida de Goiânia", "Caldas Novas", "Catalão", "Chapadão do Céu", "Cristalina", "Formosa", "Goiatuba", "Goiânia", "Inhumas", "Ipameri", "Iporá", "Itumbiara", "Jataí", "Luziânia", "Mineiros", "Montividiu", "Morrinhos", "Paraúna", "Porangatu", "Quirinópolis", "Rio Verde", "Santa Helena de Goiás", "Silvânia", "Trindade", "Uruaçu"], "SP": ["Andradina", "Araraquara", "Araçatuba", "Assis", "Avaré", "Barretos", "Bauru", "Bebedouro", "Botucatu", "Campinas", "Fernandópolis", "Franca", "Guaíra", "Itapeva", "Ituverava", "Jaboticabal", "Limeira", "Marília", "Mococa", "Orlândia", "Ourinhos", "Piracicaba", "Presidente Prudente", "Ribeirão Preto", "Sorocaba", "São Carlos", "São José do Rio Preto", "São João da Boa Vista", "São Paulo", "Votuporanga"], "MT": ["Alta Floresta", "Barra do Garças", "Campo Novo do Parecis", "Campo Verde", "Campos de Júlio", "Canarana", "Cuiabá", "Cáceres", "Diamantino", "Juína", "Lucas do Rio Verde", "Nova Mutum", "Nova Ubiratã", "Primavera do Leste", "Querência", "Rondonópolis", "Sapezal", "Sinop", "Sorriso", "Tangará da Serra", "Várzea Grande", "Água Boa"], "MS": ["Amambai", "Aquidauana", "Campo Grande", "Chapadão do Sul", "Corumbá", "Costa Rica", "Coxim", "Dourados", "Maracaju", "Naviraí", "Nova Andradina", "Paranaíba", "Ponta Porã", "Rio Brilhante", "Sidrolândia", "São Gabriel do Oeste", "Três Lagoas"], "PR": ["Apucarana", "Arapongas", "Assis Chateaubriand", "Campo Mourão", "Cascavel", "Castro", "Cornélio Procópio", "Curitiba", "Foz do Iguaçu", "Francisco Beltrão", "Guarapuava", "Ivaiporã", "Londrina", "Maringá", "Palotina", "Paranavaí", "Pato Branco", "Ponta Grossa", "Toledo", "Umuarama"], "RS": ["Alegrete", "Bagé", "Carazinho", "Caxias do Sul", "Cruz Alta", "Erechim", "Ijuí", "Não-Me-Toque", "Palmeira das Missões", "Passo Fundo", "Pelotas", "Porto Alegre", "Santa Maria", "Santa Rosa", "Santiago", "Santo Ângelo", "São Borja", "Tupanciretã", "Uruguaiana", "Vacaria"], "SC": ["Blumenau", "Campos Novos", "Canoinhas", "Chapecó", "Concórdia", "Criciúma", "Curitibanos", "Florianópolis", "Itajaí", "Joinville", "Lages", "São Miguel do Oeste", "Videira", "Xanxerê"], "BA": ["Barreiras", "Bom Jesus da Lapa", "Correntina", "Feira de Santana", "Formosa do Rio Preto", "Ilhéus", "Irecê", "Itabuna", "Jaborandi", "Juazeiro", "Luís Eduardo Magalhães", "Riachão das Neves", "Salvador", "São Desidério", "Teixeira de Freitas", "Vitória da Conquista"], "TO": ["Araguaína", "Campos Lindos", "Formoso do Araguaia", "Guaraí", "Gurupi", "Lagoa da Confusão", "Palmas", "Paraíso do Tocantins", "Pedro Afonso", "Porto Nacional"], "MA": ["Açailândia", "Bacabal", "Balsas", "Caxias", "Chapadinha", "Imperatriz", "São Luís", "Tasso Fragoso", "Timon"], "PI": ["Baixa Grande do Ribeiro", "Bom Jesus", "Corrente", "Floriano", "Parnaíba", "Picos", "Ribeiro Gonçalves", "Teresina", "Uruçuí"], "DF": ["Brasília"], "ES": ["Cachoeiro de Itapemirim", "Colatina", "Jaguaré", "Linhares", "Nova Venécia", "Serra", "São Mateus", "Venda Nova do Imigrante", "Vila Velha", "Vitória"], "RJ": ["Campos dos Goytacazes", "Itaperuna", "Macaé", "Nova Friburgo", "Petrópolis", "Resende", "Rio de Janeiro", "Teresópolis", "Volta Redonda"], "PA": ["Altamira", "Belém", "Castanhal", "Dom Eliseu", "Marabá", "Paragominas", "Redenção", "Santarém", "Ulianópolis", "Xinguara"], "RO": ["Ariquemes", "Cacoal", "Cerejeiras", "Ji-Paraná", "Porto Velho", "Rolim de Moura", "Vilhena"], "AC": ["Cruzeiro do Sul", "Rio Branco", "Sena Madureira"], "AM": ["Humaitá", "Itacoatiara", "Manaus", "Parintins"], "RR": ["Boa Vista", "Caracaraí", "Rorainópolis"], "AP": ["Macapá", "Santana"], "CE": ["Crato", "Fortaleza", "Iguatu", "Juazeiro do Norte", "Limoeiro do Norte", "Quixadá", "Sobral"], "RN": ["Açu", "Caicó", "Mossoró", "Natal"], "PB": ["Campina Grande", "João Pessoa", "Patos", "Sousa"], "PE": ["Arcoverde", "Caruaru", "Garanhuns", "Petrolina", "Recife", "Serra Talhada"], "AL": ["Arapiraca", "Maceió", "Palmeira dos Índios", "Penedo"], "SE": ["Aracaju", "Itabaiana", "Lagarto", "Nossa Senhora da Glória"]};
+let ufEscolhida = "";
+$("uf-grid").innerHTML = UFS.map(([u, n]) => `<button type="button" class="uf" data-uf="${u}" aria-label="${n}">${u}</button>`).join("");
+function mostrarCidades() {
+  const q = norm($("cid-busca").value.trim());
+  const lista = (CIDADES[ufEscolhida] || []).filter((c) => !q || norm(c).includes(q)).sort((x, y) => x.localeCompare(y, "pt-BR"));
+  const atual = cidade && cidade.endsWith(", " + ufEscolhida) ? cidade.slice(0, -4) : "";
+  $("cid-grid").innerHTML = lista.length ? lista.map((c) => `<button type="button" class="cid${c === atual ? " on" : ""}" data-cid="${esc(c)}">${esc(c)}</button>`).join("")
+    : `<div class="empty">Não encontrada. Use "Outra cidade".</div>`;
+}
+function abrirUF(u) {
+  ufEscolhida = u; $("cid-step1").hidden = true; $("cid-step2").hidden = false;
+  $("uf-nome").textContent = u;
+  $("cid-busca").value = ""; $("cid-outra").value = ""; mostrarCidades();
+}
+async function geocodificar(nome, uf) {
+  const nomeUF = (UFS.find((x) => x[0] === uf) || [uf, uf])[1];
+  const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=20&language=pt&format=json&countryCode=BR&name=" + encodeURIComponent(nome));
+  const j = await r.json();
+  const lista = (j.results || []).filter((x) => x.country_code === "BR");
+  const certo = lista.find((x) => norm(x.admin1) === norm(nomeUF) && norm(x.name) === norm(nome)) || lista.find((x) => norm(x.admin1) === norm(nomeUF));
+  return certo ? { lat: certo.latitude, lon: certo.longitude } : null;
+}
+async function salvarCidade(nome) {
+  const c = nome.trim() + ", " + ufEscolhida;
+  toast("Procurando " + c + "…");
+  let geo = null;
+  try { geo = await geocodificar(nome.trim(), ufEscolhida); } catch { toast("Sem internet para achar a cidade. Tente de novo."); return; }
+  if (!geo) { toast("Não achei essa cidade em " + ufEscolhida + ". Confira o nome."); return; }
+  const dados = { cidade: c, lat: geo.lat, lon: geo.lon };
+  if (db) { try { await db.doc("config/fazenda").set(dados); } catch (err) { handleWriteError(err); return; } }
+  cidade = c; fazendaGeo = geo; trocandoCidade = false; renderTempo(); buscarTempo(); toast("Cidade salva: " + c);
+}
+const WMO = { 0: "Céu limpo", 1: "Quase limpo", 2: "Parcialmente nublado", 3: "Nublado", 45: "Neblina", 48: "Neblina", 51: "Garoa fraca", 53: "Garoa", 55: "Garoa forte", 61: "Chuva fraca", 63: "Chuva", 65: "Chuva forte", 66: "Chuva gelada", 67: "Chuva gelada", 71: "Neve", 73: "Neve", 75: "Neve", 80: "Pancadas de chuva", 81: "Pancadas de chuva", 82: "Pancadas fortes", 95: "Tempestade", 96: "Tempestade com granizo", 99: "Tempestade com granizo" };
+let tempoBusca = 0;
+async function buscarTempo() {
+  if (!fazendaGeo || !cidade) return;
+  const meu = ++tempoBusca;
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${fazendaGeo.lat}&longitude=${fazendaGeo.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max&timezone=America%2FSao_Paulo&forecast_days=7`;
+    const j = await (await fetch(u)).json();
+    if (meu !== tempoBusca || !j.daily) return;
+    const d = j.daily;
+    tempo = { cidade, atualizadoEm: new Date().toISOString(), dias: d.time.map((t, i) => ({ data: t, min: d.temperature_2m_min[i], max: d.temperature_2m_max[i], chuvaProb: d.precipitation_probability_max[i], chuvaMm: d.precipitation_sum[i], ventoKmh: d.wind_speed_10m_max[i], resumo: WMO[d.weather_code[i]] || "" })) };
+    renderTempo();
+  } catch { $("tempo-head").textContent = "Sem internet para buscar a previsão agora."; }
+}
+setInterval(() => { if (document.visibilityState === "visible") buscarTempo(); }, 30 * 60 * 1000);
+$("uf-grid").addEventListener("click", (e) => { const b = e.target.closest("[data-uf]"); if (b) abrirUF(b.dataset.uf); });
+$("cid-grid").addEventListener("click", (e) => { const b = e.target.closest("[data-cid]"); if (b) salvarCidade(b.dataset.cid); });
+$("cid-busca").addEventListener("input", mostrarCidades);
+$("cid-voltar-uf").addEventListener("click", () => { $("cid-step2").hidden = true; $("cid-step1").hidden = false; });
+$("f-cidade-outra").addEventListener("submit", (e) => { e.preventDefault(); const v = $("cid-outra").value.trim(); if (v) salvarCidade(v); });
+$("cid-trocar").addEventListener("click", () => {
+  trocandoCidade = true;
+  const m = /, ([A-Z]{2})$/.exec(cidade || "");
+  if (m && CIDADES[m[1]]) abrirUF(m[1]); else { $("cid-step2").hidden = true; $("cid-step1").hidden = false; }
+  renderTempo(); $("cid-picker").scrollIntoView({ block: "start" });
+});
+function renderTempo() {
+  $("cid-picker").hidden = !canWrite || (!!cidade && !trocandoCidade);
+  $("cid-trocar").hidden = !canWrite || !cidade || trocandoCidade;
+  const dias = tempo && Array.isArray(tempo.dias) ? tempo.dias : [];
+  const cidTempo = tempo && tempo.cidade;
+  $("tempo-head").textContent = !cidade ? "Escolha acima o estado e a cidade da fazenda."
+    : !dias.length || norm(cidTempo) !== norm(cidade) ? `Buscando a previsão para ${cidade}…`
+    : `Previsão para ${cidTempo} · atualizada ${new Date(tempo.atualizadoEm).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} às ${new Date(tempo.atualizadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  const show = dias.length && norm(cidTempo) === norm(cidade);
+  $("tempo-list").innerHTML = show ? dias.map((d) => {
+    const dt = new Date(d.data + "T12:00:00");
+    return `<li class="tempo-row" style="display:grid"><div><b>${dt.toLocaleDateString("pt-BR", { weekday: "short" })}</b><div class="s">${fmtDia(d.data)}</div></div>
+      <div class="desc"><div class="t">${esc(d.resumo || "")}</div><div class="s">${d.chuvaProb !== null && d.chuvaProb !== undefined ? fmtN(d.chuvaProb) + "% de chuva" : ""}${d.chuvaMm ? " · " + fmtN(d.chuvaMm, 1) + " mm" : ""}${d.ventoKmh ? " · vento " + fmtN(d.ventoKmh) + " km/h" : ""}</div>
+        <div class="rain"><i style="width:${Math.min(100, d.chuvaProb || 0)}%"></i></div>
+        <div class="${bomPulv(d) ? "ok-pulv" : "no-pulv"}">${bomPulv(d) ? "Bom para pulverizar" : "Evite pulverizar"}</div></div>
+      <div class="nums" style="text-align:right"><b>${d.max !== undefined ? fmtN(d.max) + "°" : ""}</b><div class="s">${d.min !== undefined ? fmtN(d.min) + "°" : ""}</div></div></li>`;
+  }).join("") : "";
+  // painel
+  const hoje = show ? dias.find((d) => d.data >= TODAY) : null;
+  $("tempo-painel").innerHTML = hoje ? `<div class="big-price nums" style="font-size:1.5rem">${fmtN(hoje.max)}° <span class="s">mín ${fmtN(hoje.min)}°</span></div><div>${esc(hoje.resumo || "")}</div><div class="s">${fmtN(hoje.chuvaProb || 0)}% de chuva · ${esc(cidTempo)}</div><div class="${bomPulv(hoje) ? "ok-pulv" : "no-pulv"}">${bomPulv(hoje) ? "Bom para pulverizar" : "Evite pulverizar"}</div>`
+    : `<div class="empty">${cidade ? "Buscando a previsão…" : "Abra Tempo e escolha a cidade da fazenda."}</div>`;
+}
+
+/* ---------- painel ---------- */
+function renderPainelExtra() {
+  const vEst = st.estoque.reduce((a, s) => a + (valorEstoque(s) || 0), 0);
+  const vReb = st.lotes.reduce((a, l) => a + (valorLote(l) || 0), 0);
+  $("pat").innerHTML = `<dl class="calc-res"><div><dt>Estoque</dt><dd>${brl(vEst)}</dd></div><div><dt>Gado</dt><dd>${brl(vReb)}</dd></div><div class="big"><dt>Total</dt><dd>${brl(vEst + vReb)}</dd></div></dl><p class="s" style="margin:0">Pelo preço de hoje.</p>`;
+  const at = st.alertas.filter(alertaAtingido), ag = st.alertas.filter((a) => !alertaAtingido(a));
+  $("alertas-painel").innerHTML = st.alertas.length ? `<ul class="list">${[...at, ...ag].slice(0, 5).map((a) => { const it = cotItem(a.itemId); return `<li style="grid-template-columns:minmax(0,1fr) auto" data-cot="${esc(a.itemId)}" role="button" tabindex="0"><div class="desc"><div class="t">${esc(it ? it.produto + " · " + it.local : "Preço")}</div><div class="s">${a.cond === "acima" ? "Subir para" : "Cair para"} ${fmtItemPreco(it, a.alvo)} · hoje ${it ? fmtItemPreco(it, it.valor) : "—"}</div></div><span class="${alertaAtingido(a) ? "alerta-ok" : "s"}">${alertaAtingido(a) ? "Atingido" : "Aguardando"}</span></li>`; }).join("")}</ul>`
+    : `<div class="empty">Nenhum aviso. Em Cotações, toque num preço para pedir um aviso quando ele subir ou cair.</div>`;
+}
+
+const diaLocal = (isoStr) => iso(new Date(isoStr));
+const horaLocal = (isoStr) => new Date(isoStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+let dolarAgora = null, dolar30 = [], dolarErro = false;
+async function buscarDolar() {
+  try {
+    const [agora, dias] = await Promise.all([
+      fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL").then((r) => r.json()),
+      dolar30.length ? Promise.resolve(null) : fetch("https://economia.awesomeapi.com.br/json/daily/USD-BRL/30").then((r) => r.json()),
+    ]);
+    const q = agora && agora.USDBRL;
+    if (q) dolarAgora = { valor: +q.bid, variacao: +q.pctChange, quando: new Date(+q.timestamp * 1000).toISOString() };
+    if (Array.isArray(dias)) dolar30 = dias.map((x) => [new Date(+x.timestamp * 1000).toISOString(), +x.bid]).filter(([t, v]) => isFinite(v)).sort((a, b) => a[0].localeCompare(b[0]));
+    dolarErro = false;
+  } catch { dolarErro = true; }
+  renderDolarPainel(); if (dolarAgora && cotData) renderCot();
+}
+function renderDolarPainel() {
+  const el = $("dolar-painel"); if (!el) return;
+  if (!dolarAgora) { el.innerHTML = `<div class="empty">${dolarErro ? "Sem internet para buscar o dólar agora." : "Buscando o dólar…"}</div>`; return; }
+  const vv = fmtVar(dolarAgora.variacao);
+  const fech = {}; dolar30.forEach(([t, v]) => { fech[diaLocal(t)] = [t, v]; });
+  fech[diaLocal(dolarAgora.quando)] = [dolarAgora.quando, dolarAgora.valor];
+  const serie = Object.keys(fech).sort().map((d) => fech[d]);
+  let legenda = "Últimos 30 dias";
+  if (serie.length >= 2) { const f = fmtVar((serie[serie.length - 1][1] / serie[0][1] - 1) * 100); legenda += ` · <span class="var ${f.cls}">${f.txt} no período</span>`; }
+  el.innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span class="big-price nums">${fmtPreco(dolarAgora.valor)}</span><span class="var ${vv.cls}">${vv.txt} hoje</span><span class="live"><i></i>ao vivo</span></div>
+    <div class="s" style="margin-top:6px">${legenda}</div>
+    ${chartSVG(serie, null, (t) => fmtDia(diaLocal(t)))}
+    <div class="s">Atualizado às ${new Date(dolarAgora.quando).toLocaleTimeString("pt-BR")} · o app confere a cada 30 segundos.</div>`;
+}
+setInterval(() => { if (document.visibilityState === "visible") buscarDolar(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") buscarDolar(); });
+buscarDolar();
+extraRenders.push(renderDolarPainel);
+extraRenders.push(renderTalhoesTab, renderRebanho, renderEstoque, renderTempo, renderPainelExtra);
+window.afterCot = () => { renderRebanho(); renderEstoque(); renderPainelExtra(); };
+
+/* ---------- carga ---------- */
+let ligado = false;
+window.onDbReady = (db) => {
+  if (ligado || !db) return; ligado = true;
+  Object.keys(COLL).forEach((k) => db.collection(COLL[k]).onSnapshot((snap) => { st[k] = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, () => {}));
+  db.doc("cotacoes/historico").onSnapshot((snap) => { if (snap.exists) historico = snap.data().serie || {}; }, () => {});
+  db.doc("config/fazenda").onSnapshot((snap) => {
+    const d = snap.exists ? snap.data() : {};
+    const mudou = (d.cidade || "") !== cidade;
+    cidade = d.cidade || ""; fazendaGeo = isFinite(d.lat) && isFinite(d.lon) ? { lat: d.lat, lon: d.lon } : null;
+    renderTempo(); if (mudou || !tempo) buscarTempo();
+  }, () => {});
+};
+window.onDemo = () => {
+  st.talhoes = [{ id: "t1", nome: "Lavoura de café", cultura: "Lavoura de café", area: 20, safra: "2026/27", producao: 600 }];
+  st.lotes = [{ id: "l1", nome: "Lote 1 – Engorda", categoria: "Boi gordo", cabecas: 40, pesoMedio: 510, pasto: "Pasto 4", dataPesagem: TODAY }];
+  st.estoque = [{ id: "s1", produtoId: "cafe-ptc-6", quantidade: 80, local: "Armazém" }];
+};
+render();
+</script>
+<script>
+(function () {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || /COLE/.test(cfg.apiKey) || typeof firebase === "undefined") { iniciarDemo(); return; }
+  firebase.initializeApp(cfg);
+  const auth = firebase.auth();
+  const fs = firebase.firestore();
+  fs.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  const GLOBAL = /^cotacoes(\/|$)/;
+  let iniciado = false;
+  auth.onAuthStateChanged((u) => {
+    if (!u) { if (iniciado) { location.reload(); return; } $("login").hidden = false; $("conta").hidden = true; return; }
+    $("login").hidden = true; $("conta").hidden = false; $("conta-nome").textContent = u.displayName || u.email || "";
+    if (iniciado) return; iniciado = true;
+    const caminho = (p) => GLOBAL.test(p) ? p : "users/" + u.uid + "/" + p;
+    iniciarDados({ collection: (p) => fs.collection(caminho(p)), doc: (p) => fs.doc(caminho(p)) });
+  });
+  auth.getRedirectResult().catch(() => { $("login-erro").textContent = "Não foi possível entrar. Tente de novo."; });
+  $("entrar").addEventListener("click", async () => {
+    $("login-erro").textContent = "";
+    const prov = new firebase.auth.GoogleAuthProvider();
+    try { await auth.signInWithPopup(prov); }
+    catch (e) {
+      if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/cancelled-popup-request"].includes(e.code)) auth.signInWithRedirect(prov);
+      else if (e.code !== "auth/popup-closed-by-user") $("login-erro").textContent = "Não foi possível entrar. Tente de novo.";
+    }
+  });
+  $("sair").addEventListener("click", () => auth.signOut());
+})();
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cada produtor só lê e grava os dados da própria fazenda
+    match /users/{uid}/{documento=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Cotações: todos que entraram podem ler; só o robô (servidor) grava
+    match /cotacoes/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
