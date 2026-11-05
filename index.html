@@ -320,7 +320,7 @@ img { max-width: 100%; }
       <div class="panel"><h2>Tempo hoje</h2><div id="tempo-painel"></div></div>
       <div class="panel"><h2>Próximas tarefas</h2><ul class="list" id="prox"></ul></div>
       <div class="panel"><h2>Quanto vale o que você tem</h2><div id="pat"></div></div>
-      <div class="panel"><h2>Avisos de preço</h2><div id="alertas-painel"></div></div>
+      <div class="panel"><h2>Avisos de preço</h2><div id="alertas-painel"></div><button type="button" class="btn small" id="ativar-notif" style="margin-top:10px" hidden>Receber avisos no celular</button><div class="s" id="notif-ok" style="margin-top:8px" hidden>Avisos no celular ligados.</div></div>
       <div class="panel dolar-panel"><h2>Dólar</h2><div id="dolar-painel"></div></div>
     </div>
   </section>
@@ -493,6 +493,7 @@ img { max-width: 100%; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
 const CATS_DESP = ["Insumos", "Mão de obra", "Combustível", "Manutenção", "Veterinário", "Outras despesas"];
@@ -1270,7 +1271,33 @@ render();
     if (iniciado) return; iniciado = true;
     const caminho = (p) => GLOBAL.test(p) ? p : "users/" + u.uid + "/" + p;
     iniciarDados({ collection: (p) => fs.collection(caminho(p)), doc: (p) => fs.doc(caminho(p)) });
+    prepararAvisos(u.uid);
   });
+  async function prepararAvisos(uid) {
+    const vapid = window.FIREBASE_VAPID;
+    let suporta = false;
+    try { suporta = !!vapid && !/COLE/.test(vapid) && "Notification" in window && "serviceWorker" in navigator && firebase.messaging && await firebase.messaging.isSupported(); } catch { suporta = false; }
+    if (!suporta) return;
+    const messaging = firebase.messaging();
+    messaging.onMessage((m) => { const n = m.notification || {}; toast((n.title ? n.title + ": " : "") + (n.body || "")); });
+    const salvarToken = async () => {
+      const reg = await navigator.serviceWorker.ready;
+      const token = await messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+      if (token) await fs.doc("users/" + uid + "/config/push").set({ tokens: firebase.firestore.FieldValue.arrayUnion(token) }, { merge: true });
+      return !!token;
+    };
+    const mostrar = () => { const ok = Notification.permission === "granted"; $("ativar-notif").hidden = ok || Notification.permission === "denied"; $("notif-ok").hidden = !ok; };
+    mostrar();
+    if (Notification.permission === "granted") salvarToken().catch(() => {});
+    $("ativar-notif").addEventListener("click", async () => {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === "granted" && await salvarToken()) toast("Pronto! Você vai receber os avisos de preço no celular.");
+        else if (perm === "denied") toast("As notificações foram bloqueadas. Dá para liberar nas configurações do celular.");
+      } catch { toast("Não foi possível ligar os avisos agora. Tente de novo."); }
+      mostrar();
+    });
+  }
   auth.getRedirectResult().catch((e) => { $("login-erro").textContent = "Não foi possível entrar. Tente de novo. (código: " + (e && e.code || "?") + ")"; });
   $("entrar").addEventListener("click", async () => {
     $("login-erro").textContent = "";
