@@ -229,17 +229,48 @@ def ex_agrolink(cidade, produto):
             var = -abs(var)
         if precos and precos[0] is not None:
             return {"valor": precos[0], "variacao": var, "dataRef": data}
+        print(f"  ? {cidade} / {produto}: linha achada sem preço: {cel}")
     return None
 
 
 def ex_dolar():
+    # 1ª opção: AwesomeAPI
     try:
-        q = requests.get("https://economia.awesomeapi.com.br/json/last/USD-BRL", timeout=20).json()["USDBRL"]
-        quando = dt.datetime.fromtimestamp(int(q["timestamp"]), FUSO).date().isoformat()
-        return {"valor": round(float(q["bid"]), 4), "variacao": round(float(q["pctChange"]), 2), "dataRef": quando}
+        r = requests.get("https://economia.awesomeapi.com.br/json/last/USD-BRL", headers=UA, timeout=20)
+        q = r.json().get("USDBRL")
+        if q:
+            quando = dt.datetime.fromtimestamp(int(q["timestamp"]), FUSO).date().isoformat()
+            return {"valor": round(float(q["bid"]), 4), "variacao": round(float(q["pctChange"]), 2), "dataRef": quando}
+        print(f"  ! dólar (AwesomeAPI) respondeu: {r.text[:120]}")
     except Exception as e:  # noqa: BLE001
-        print(f"  ! dólar: {e}")
-        return None
+        print(f"  ! dólar (AwesomeAPI): {e}")
+    # 2ª opção: Yahoo Finanças
+    try:
+        r = requests.get("https://query1.finance.yahoo.com/v8/finance/chart/BRL=X?range=5d&interval=1d", headers=UA, timeout=20)
+        res = r.json()["chart"]["result"][0]
+        meta = res["meta"]
+        valor = float(meta["regularMarketPrice"])
+        ant = meta.get("chartPreviousClose") or meta.get("previousClose")
+        var = round((valor / float(ant) - 1) * 100, 2) if ant else None
+        quando = dt.datetime.fromtimestamp(int(meta.get("regularMarketTime", 0)) or int(dt.datetime.now().timestamp()), FUSO).date().isoformat()
+        return {"valor": round(valor, 4), "variacao": var, "dataRef": quando}
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! dólar (Yahoo): {e}")
+    # 3ª opção: PTAX do Banco Central (fechamento oficial do dia útil mais recente)
+    try:
+        ini = (HOJE - dt.timedelta(days=7)).strftime("%m-%d-%Y")
+        fim = HOJE.strftime("%m-%d-%Y")
+        url = ("https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@i,dataFinalCotacao=@f)"
+               f"?@i='{ini}'&@f='{fim}'&$format=json")
+        vals = requests.get(url, timeout=20).json().get("value", [])
+        if vals:
+            u = vals[-1]
+            ant = vals[-2]["cotacaoVenda"] if len(vals) > 1 else None
+            var = round((u["cotacaoVenda"] / ant - 1) * 100, 2) if ant else None
+            return {"valor": round(float(u["cotacaoVenda"]), 4), "variacao": var, "dataRef": u["dataHoraCotacao"][:10]}
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! dólar (Banco Central): {e}")
+    return None
 
 
 # id do item -> como buscar
@@ -282,10 +313,10 @@ FONTES = {
     "rep-bezerro": lambda: ex_linha(NA + "boi-gordo", r"^Reposi..o Nelore - Macho", r"Minas Gerais", v=2, p=None),
     "rep-garrote": lambda: ex_linha(NA + "boi-gordo", r"^Reposi..o Nelore - Macho", r"Minas Gerais", v=3, p=None),
     "rep-boimagro": lambda: ex_linha(NA + "boi-gordo", r"^Reposi..o Nelore - Macho", r"Minas Gerais", v=4, p=None),
-    "boi-udi": lambda: ex_agrolink("uberlandia", r"^Boi Gordo"),
+    "boi-udi": lambda: ex_agrolink("uberlandia", r"Boi Gordo"),
     "vaca-udi": lambda: ex_agrolink("uberlandia", r"Vaca Gorda"),
     "novilha-udi": lambda: ex_agrolink("uberlandia", r"Novilha Gorda"),
-    "leite-udi": lambda: ex_agrolink("uberlandia", r"^Leite"),
+    "leite-udi": lambda: ex_agrolink("uberlandia", r"\bLeite\b"),
     "leite-mg": lambda: ex_linha(NA + "leite", r"Leite - Pre.os ao Produtor", r"^MG\b"),
     "leite-br": lambda: ex_linha(NA + "leite", r"Leite - Pre.os ao Produtor", r"^Brasil\b"),
     # Grãos
