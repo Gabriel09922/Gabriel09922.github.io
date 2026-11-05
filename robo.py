@@ -233,6 +233,67 @@ def ex_agrolink(cidade, produto):
     return None
 
 
+def _chave(t):
+    return re.sub(r"[^a-z]", "", sem_acento(t))
+
+
+def ex_ceasa(produto):
+    """CeasaMinas, preço mais comum: cada unidade é uma coluna; pega a coluna de Uberlândia."""
+    sopa = pagina("https://minas1.ceasa.mg.gov.br/ceasainternet/cst_precosmaiscomumMG/cst_precosmaiscomumMG.php")
+    if not sopa:
+        return None
+    m = re.search(r"Uberl.ndia\s*-\s*cota..o de:?\s*(\d{2}/\d{2}/\d{4})", sopa.get_text(" ", strip=True), re.I)
+    data = data_br(m.group(1)) if m else None
+    alvo = _chave(produto)
+    for tb in sopa.find_all("table"):
+        col = None
+        for tr in tb.find_all("tr"):
+            cel = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+            if col is None:
+                idx = [i for i, c in enumerate(cel) if re.search(r"Uberl.ndia", c, re.I) and len(c) < 20]
+                if idx and any(re.search(r"Produto", c, re.I) for c in cel):
+                    col = idx[0]
+                continue
+            if cel and _chave(cel[0]) == alvo and len(cel) > col:
+                val = numero(cel[col])
+                return None if val is None else {"valor": val, "variacao": None, "dataRef": data}
+    return None
+
+
+def ex_graodireto(cidade):
+    """Grão Direto: tabela Data | Cidade | Preço | Variação."""
+    sopa = pagina("https://www.graodireto.com.br/ofertas/soja/mg/")
+    if not sopa:
+        return None
+    alvo = _chave(cidade)
+    for tr in sopa.find_all("tr"):
+        cel = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+        if not any(_chave(c) == alvo for c in cel):
+            continue
+        preco = next((numero(c) for c in cel if "R$" in c), None)
+        var = next((numero(c) for c in cel if "%" in c), None)
+        if preco is not None:
+            return {"valor": preco, "variacao": var, "dataRef": data_br(" ".join(cel))}
+    return None
+
+
+def ex_girassol():
+    """Agrolink: médias mensais (Mês | Estadual | Nacional | Var.) — usa a média nacional mais recente."""
+    sopa = pagina("https://www.agrolink.com.br/cotacoes/historico/mt/girassol-comum-sc-60kg")
+    if not sopa:
+        return None
+    for tr in sopa.find_all("tr"):
+        cel = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+        if len(cel) >= 3 and re.match(r"[A-Za-z]{3}/\d{4}$", cel[0]):
+            val = numero(cel[2])
+            if val is None:
+                continue
+            mes = f"{sem_acento(cel[0][:3])}/{cel[0][-2:]}"
+            return {"valor": val, "variacao": numero(cel[3]) if len(cel) > 3 else None, "dataRef": None,
+                    "local": f"Média Brasil · {mes}"}
+    return None
+
+
 def ex_dolar():
     # 1ª opção: AwesomeAPI
     try:
@@ -341,6 +402,22 @@ FONTES = {
     "cebola-bh": lambda: ex_secao(NA + "legumes", r"^Cebola - Ceasas", r"Belo Horizonte", r"Amarela"),
     "batata-udi-esp": lambda: ex_agrolink("uberlandia", r"Batata Padr.o Agata Especial"),
     "batata-udi-pri": lambda: ex_agrolink("uberlandia", r"Batata Agata Primeira"),
+    # Ceasa de Uberlândia (preço mais comum, por kg)
+    "batata-ceasa-udi": lambda: ex_ceasa("BATATA"),
+    "tomate-udi": lambda: ex_ceasa("TOMATE"),
+    "cebola-udi": lambda: ex_ceasa("CEBOLA"),
+    "cenoura-udi": lambda: ex_ceasa("CENOURA"),
+    "mandioca-udi": lambda: ex_ceasa("MANDIOCA"),
+    "alface-udi": lambda: ex_ceasa("ALFACE"),
+    "banana-nanica-udi": lambda: ex_ceasa("BANANA NANICA"),
+    "banana-prata-udi": lambda: ex_ceasa("BANANA PRATA"),
+    "laranja-udi": lambda: ex_ceasa("LARANJA"),
+    # Soja nas praças de Minas (Grão Direto)
+    "soja-uba": lambda: ex_graodireto("Uberaba"),
+    "soja-ptc": lambda: ex_graodireto("Patrocínio"),
+    "soja-pdm": lambda: ex_graodireto("Patos de Minas"),
+    "soja-unai": lambda: ex_graodireto("Unaí"),
+    "girassol": ex_girassol,
     # Cana e fibras
     "acucar": lambda: ex_primeira(NA + "sucroenergetico", r"Indicador do A..car Cristal Cepea"),
     "etanol": lambda: ex_primeira(NA + "sucroenergetico", r"Indicador Semanal Etanol Hidratado Cepea"),
@@ -367,7 +444,11 @@ def carregar_atual(db):
         return json.load(f)
 
 
+REMOVIDOS = {"milho-udi-uba", "feijao-noroeste"}  # vinham de reportagem (BBM): sem leitura confiável
+
+
 def atualizar_precos(doc):
+    doc["itens"] = [it for it in doc["itens"] if it["id"] not in REMOVIDOS]
     ok, falhou = [], []
     for it in doc["itens"]:
         f = FONTES.get(it["id"])
