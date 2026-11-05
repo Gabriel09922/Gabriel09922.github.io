@@ -1,0 +1,21 @@
+name: Robô de cotações
+
+on:
+  schedule:
+    - cron: "47 12-21 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  robo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Buscar preços, gravar e conferir alertas
+        run: python robo.py
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
